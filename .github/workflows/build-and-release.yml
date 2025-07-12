@@ -1,0 +1,277 @@
+name: 🚀 Build and Release from Private Repository
+
+on:
+  push:
+    branches: [main, dev]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+  packages: write
+
+jobs:
+  build:
+    name: 🔨 Build for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            artifact-name: linux-x64
+            executable: app
+          - os: macos-latest
+            artifact-name: darwin-x64
+            executable: app
+
+    steps:
+      - name: 📥 Checkout private repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.REPOSITORY_URL }}
+          token: ${{ secrets.SELF_GITHUB_SECRETS }}
+          fetch-depth: 0
+
+      - name: 🏷️ Get version
+        id: version
+        shell: bash
+        run: |
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+          else
+            VERSION="v$(date +'%Y.%m.%d')-${GITHUB_SHA::7}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: 🟢 Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: 📦 Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: 🔍 Lint code
+        run: bun run lint
+
+      - name: 🏗️ Build application
+        run: |
+          mkdir -p dist
+          bun build src/index.ts --compile --outfile dist/${{ matrix.executable }}
+
+      - name: 🍎 macOS post-build processing
+        if: matrix.os == 'macos-latest'
+        run: |
+          # 移除所有扩展属性，包括隔离属性
+          xattr -c dist/${{ matrix.executable }} 2>/dev/null || true
+          # 确保没有任何隔离标记
+          xattr -d com.apple.quarantine dist/${{ matrix.executable }} 2>/dev/null || true
+          # 移除所有可能的属性
+          xattr -cr dist/${{ matrix.executable }} 2>/dev/null || true
+
+          # 设置可执行权限
+          chmod +x dist/${{ matrix.executable }}
+
+          # Ad hoc 代码签名 - 这是关键步骤
+          echo "🔐 Performing ad hoc code signing..."
+          codesign --force --deep --sign - dist/${{ matrix.executable }}
+
+          # 验证签名
+          echo "✅ Verifying code signature..."
+          codesign --verify --verbose dist/${{ matrix.executable }}
+
+          # 显示签名信息
+          echo "📋 Code signature info:"
+          codesign --display --verbose dist/${{ matrix.executable }}
+
+          # 检查签名状态
+          echo "🔍 Checking signature status:"
+          codesign --test-requirement="=designated => anchor apple generic" dist/${{ matrix.executable }} || echo "Note: This is expected for ad hoc signatures"
+
+          # 验证Gatekeeper兼容性
+          echo "🚪 Testing Gatekeeper compatibility:"
+          spctl --assess --type execute dist/${{ matrix.executable }} || echo "Note: Ad hoc signatures are not Gatekeeper-approved but should work"
+
+          # 验证文件类型
+          file dist/${{ matrix.executable }}
+
+          # 最终验证没有扩展属性
+          echo "🔍 Final extended attributes check:"
+          xattr -l dist/${{ matrix.executable }} || echo "No extended attributes found (good!)"
+
+      - name: 🐧 Linux post-build processing
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          # 确保可执行权限
+          chmod +x dist/${{ matrix.executable }}
+          # 验证文件
+          file dist/${{ matrix.executable }}
+
+      - name: 📊 Get build info
+        id: build-info
+        shell: bash
+        run: |
+          echo "build-date=$(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_OUTPUT
+          echo "commit-sha=${GITHUB_SHA}" >> $GITHUB_OUTPUT
+          echo "commit-short=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+
+      - name: 📦 Prepare release file
+        shell: bash
+        run: |
+          # 重命名可执行文件，包含平台信息
+          if [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            # macOS: 在重命名前再次确保文件干净
+            xattr -c dist/${{ matrix.executable }} 2>/dev/null || true
+            mv dist/${{ matrix.executable }} app-${{ steps.version.outputs.version }}-${{ matrix.artifact-name }}
+          else
+            # Linux
+            mv dist/${{ matrix.executable }} app-${{ steps.version.outputs.version }}-${{ matrix.artifact-name }}
+          fi
+
+          # 验证文件
+          ls -la app-${{ steps.version.outputs.version }}-${{ matrix.artifact-name }}
+          file app-${{ steps.version.outputs.version }}-${{ matrix.artifact-name }}
+
+      - name: 📤 Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-${{ matrix.artifact-name }}
+          path: app-${{ steps.version.outputs.version }}-${{ matrix.artifact-name }}
+          retention-days: 30
+
+  release:
+    name: 🚀 Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev' || startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: 📥 Checkout private repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.REPOSITORY_URL }}
+          token: ${{ secrets.SELF_GITHUB_SECRETS }}
+          fetch-depth: 0
+
+      - name: 🏷️ Get version
+        id: version
+        run: |
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+            IS_PRERELEASE=false
+          else
+            VERSION="v$(date +'%Y.%m.%d')-${GITHUB_SHA::7}"
+            IS_PRERELEASE=true
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "is-prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+
+      - name: 📋 Generate changelog
+        id: changelog
+        run: |
+          echo "Generating changelog..."
+
+          # 获取最近的标签
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+          if [[ -z "$LAST_TAG" ]]; then
+            # 如果没有标签，获取最近10个提交
+            COMMITS=$(git log --oneline -10 --pretty=format:"- %s (%h)")
+          else
+            # 获取自上次标签以来的提交
+            COMMITS=$(git log ${LAST_TAG}..HEAD --oneline --pretty=format:"- %s (%h)")
+          fi
+
+          # 生成变更日志
+          CHANGELOG="## 🎉 版本 ${{ steps.version.outputs.version }}
+
+          ### 📅 发布信息
+          - **发布时间**: $(date -u +'%Y-%m-%d %H:%M:%S UTC')
+          - **提交哈希**: \`${GITHUB_SHA}\`
+          - **分支**: \`${GITHUB_REF_NAME}\`
+
+          ### 📝 本次更新内容
+          ${COMMITS}
+
+          ### 📦 下载说明
+          - **macOS**: 下载 \`app-*-darwin-x64\`，添加执行权限后运行: \`chmod +x app-*-darwin-x64 && ./app-*-darwin-x64\`
+          - **Linux**: 下载 \`app-*-linux-x64\`，添加执行权限后运行: \`chmod +x app-*-linux-x64 && ./app-*-linux-x64\`
+
+          ### 🔧 技术栈
+          - **运行时**: Bun
+          - **框架**: ElysiaJS
+          - **数据库**: Drizzle ORM + PostgreSQL
+          - **架构**: DDD + CQRS
+
+          ### ⚠️ macOS 用户注意
+          1. 下载可执行文件
+          2. 打开终端，进入下载目录
+          3. 执行 \`chmod +x app-*-darwin-x64 && ./app-*-darwin-x64\`
+          4. 如果仍提示安全问题，请在系统偏好设置 → 安全性与隐私 → 通用中点击"仍要打开"
+          5. 或者运行: \`xattr -d com.apple.quarantine ./app-*-darwin-x64\` 然后再执行"
+
+          # 保存到环境变量（处理多行）
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: 📤 Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+
+      - name: 🔍 Debug artifacts structure
+        run: |
+          echo "=== Artifacts directory structure ==="
+          find ./artifacts -type f -ls
+          echo "=== Looking for app-* files ==="
+          find ./artifacts -name "app-*" -type f
+          echo "=== All files in artifacts ==="
+          ls -la ./artifacts/
+
+      - name: 📁 Prepare release assets
+        run: |
+          mkdir -p release-assets
+          # 递归查找所有app-*文件
+          find ./artifacts -name "app-*" -type f | while read file; do
+            echo "Found and copying: $file"
+            # 复制文件，保持原文件名（去掉路径）
+            cp "$file" "release-assets/$(basename "$file")"
+          done
+
+          echo "=== Final release assets ==="
+          ls -la release-assets/
+
+          # 确保至少有文件存在
+          if [ ! "$(ls -A release-assets/)" ]; then
+            echo "ERROR: No release assets found!"
+            exit 1
+          fi
+
+      - name: 🏷️ Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: "🚀 Release ${{ steps.version.outputs.version }}"
+          body: ${{ steps.changelog.outputs.changelog }}
+          prerelease: ${{ steps.version.outputs.is-prerelease }}
+          files: release-assets/*
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 📢 Release Summary
+        run: |
+          echo "## 🎉 Release Created Successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version**: ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Prerelease**: ${{ steps.version.outputs.is-prerelease }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Available Downloads:" >> $GITHUB_STEP_SUMMARY
+          echo "- macOS: \`app-${{ steps.version.outputs.version }}-darwin-x64\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Linux: \`app-${{ steps.version.outputs.version }}-linux-x64\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔗 [View Release](https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.version }})" >> $GITHUB_STEP_SUMMARY
