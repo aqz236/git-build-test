@@ -54,11 +54,11 @@ jobs:
           # 获取私有仓库的当前提交信息
           PRIVATE_COMMIT=$(git rev-parse HEAD)
           PRIVATE_COMMIT_SHORT=$(git rev-parse --short HEAD)
-          
+
           # 获取触发此次构建的仓库信息（当前Action运行的仓库）
           TRIGGER_COMMIT="${{ github.sha }}"
           TRIGGER_COMMIT_SHORT="${TRIGGER_COMMIT:0:7}"
-          
+
           # 检查是否来自 repository dispatch
           if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
             # 使用触发仓库的信息
@@ -70,8 +70,8 @@ jobs:
           elif [[ $GITHUB_REF == refs/tags/* ]]; then
             VERSION=${GITHUB_REF#refs/tags/}
           else
-            # 使用触发仓库的提交信息作为版本号的一部分
-            VERSION="v$(date +'%Y.%m.%d')-build-${TRIGGER_COMMIT_SHORT}"
+            # 使用私有仓库的提交信息作为版本号
+            VERSION="v$(date +'%Y.%m.%d')-${PRIVATE_COMMIT_SHORT}"
           fi
 
           echo "version=$VERSION" >> $GITHUB_OUTPUT
@@ -233,7 +233,7 @@ jobs:
           # 获取私有仓库的当前提交信息
           PRIVATE_COMMIT=$(git rev-parse HEAD)
           PRIVATE_COMMIT_SHORT=$(git rev-parse --short HEAD)
-          
+
           # 获取触发此次构建的仓库信息（当前Action运行的仓库）
           TRIGGER_COMMIT="${{ github.sha }}"
           TRIGGER_COMMIT_SHORT="${TRIGGER_COMMIT:0:7}"
@@ -251,8 +251,8 @@ jobs:
             VERSION=${GITHUB_REF#refs/tags/}
             IS_PRERELEASE=false
           else
-            # 使用触发仓库的提交信息作为版本号的一部分
-            VERSION="v$(date +'%Y.%m.%d')-build-${TRIGGER_COMMIT_SHORT}"
+            # 使用私有仓库的提交信息作为版本号
+            VERSION="v$(date +'%Y.%m.%d')-${PRIVATE_COMMIT_SHORT}"
             IS_PRERELEASE=true
           fi
 
@@ -267,35 +267,26 @@ jobs:
         run: |
           echo "Generating changelog..."
 
+          # 确保获取最新的私有仓库信息
+          git fetch --all
+
           # 获取当前私有仓库的最新提交信息
           CURRENT_COMMIT=$(git rev-parse HEAD)
           CURRENT_COMMIT_SHORT=$(git rev-parse --short HEAD)
           CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-          
+
           # 获取触发仓库的信息
           TRIGGER_COMMIT="${{ github.sha }}"
           TRIGGER_COMMIT_SHORT="${TRIGGER_COMMIT:0:7}"
 
-          # 获取最近的标签
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          echo "Current private repo HEAD: $CURRENT_COMMIT"
+          echo "Current private repo branch: $CURRENT_BRANCH"
 
-          if [[ -z "$LAST_TAG" ]]; then
-            # 如果没有标签，获取最近10个提交
-            echo "No previous tags found, showing recent commits..."
-            COMMITS=$(git log --oneline -10 --pretty=format:"- %s (%h)" 2>/dev/null || echo "- 初始化项目")
-          else
-            # 获取自上次标签以来的提交
-            echo "Getting commits since last tag: $LAST_TAG"
-            COMMITS=$(git log ${LAST_TAG}..HEAD --oneline --pretty=format:"- %s (%h)" 2>/dev/null || git log --oneline -5 --pretty=format:"- %s (%h)")
-            
-            # 如果自上次标签以来没有新提交，显示最近的几个提交
-            if [[ -z "$COMMITS" ]]; then
-              echo "No new commits since last tag, showing recent commits..."
-              COMMITS=$(git log --oneline -5 --pretty=format:"- %s (%h)")
-            fi
-          fi
+          # 直接获取最近的提交（不依赖标签）
+          echo "Getting recent commits from private repository..."
+          COMMITS=$(git log --oneline -10 --pretty=format:"- %s (%h)" 2>/dev/null || echo "- 初始化项目")
 
-          # 如果仍然没有提交信息，使用默认信息
+          # 如果没有提交信息，使用默认信息
           if [[ -z "$COMMITS" ]]; then
             COMMITS="- 构建和发布应用程序 ($CURRENT_COMMIT_SHORT)"
           fi
@@ -337,7 +328,7 @@ jobs:
           - **私有仓库分支**: \`${CURRENT_BRANCH}\`
           ${TRIGGER_INFO_SECTION}
 
-          ### 📝 私有仓库更新内容
+          ### 📝 私有仓库最新提交
           ${COMMITS}
 
           ### 📦 下载说明
