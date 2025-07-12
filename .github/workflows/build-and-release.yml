@@ -44,13 +44,16 @@ jobs:
           fi
 
           echo "Cloning repository: $REPO_PATH"
-          git clone https://${{ secrets.SELF_GITHUB_SECRETS }}@github.com/${REPO_PATH}.git .
+          git clone https://${{ secrets.SELF_GITHUB_SECRETS }}@github.com/${REPO_PATH}.git app/
+          cd app/
           git fetch --all --tags
 
       - name: 🏷️ Get version
         id: version
         shell: bash
         run: |
+          # 进入私有仓库目录获取信息
+          cd app/
           # 获取私有仓库的当前提交信息
           PRIVATE_COMMIT=$(git rev-parse HEAD)
           PRIVATE_COMMIT_SHORT=$(git rev-parse --short HEAD)
@@ -85,19 +88,25 @@ jobs:
           bun-version: latest
 
       - name: 📦 Install dependencies
-        run: bun install --frozen-lockfile
+        run: |
+          cd app/
+          bun install --frozen-lockfile
 
       - name: 🔍 Lint code
-        run: bun run lint
+        run: |
+          cd app/
+          bun run lint
 
       - name: 🏗️ Build application
         run: |
+          cd app/
           mkdir -p dist
           bun build src/index.ts --compile --outfile dist/${{ matrix.executable }}
 
       - name: 🍎 macOS post-build processing
         if: matrix.os == 'macos-latest'
         run: |
+          cd app/
           # 移除所有扩展属性，包括隔离属性
           xattr -c dist/${{ matrix.executable }} 2>/dev/null || true
           # 确保没有任何隔离标记
@@ -138,6 +147,7 @@ jobs:
       - name: 🐧 Linux post-build processing
         if: matrix.os == 'ubuntu-latest'
         run: |
+          cd app/
           # 确保可执行权限
           chmod +x dist/${{ matrix.executable }}
           # 验证文件
@@ -154,16 +164,18 @@ jobs:
       - name: 📦 Prepare release file
         shell: bash
         run: |
+          cd app/
           # 重命名可执行文件，包含平台信息
           if [[ "${{ matrix.os }}" == "macos-latest" ]]; then
             # macOS: 在重命名前再次确保文件干净
             xattr -c dist/${{ matrix.executable }} 2>/dev/null || true
-            mv dist/${{ matrix.executable }} app-${{ steps.version.outputs.version }}-${{ matrix.artifact-name }}
+            mv dist/${{ matrix.executable }} ../app-${{ steps.version.outputs.version }}-${{ matrix.artifact-name }}
           else
             # Linux
-            mv dist/${{ matrix.executable }} app-${{ steps.version.outputs.version }}-${{ matrix.artifact-name }}
+            mv dist/${{ matrix.executable }} ../app-${{ steps.version.outputs.version }}-${{ matrix.artifact-name }}
           fi
 
+          cd ..
           # 验证文件
           ls -la app-${{ steps.version.outputs.version }}-${{ matrix.artifact-name }}
           file app-${{ steps.version.outputs.version }}-${{ matrix.artifact-name }}
@@ -224,12 +236,15 @@ jobs:
           fi
 
           echo "Cloning repository: $REPO_PATH"
-          git clone https://${{ secrets.SELF_GITHUB_SECRETS }}@github.com/${REPO_PATH}.git .
+          git clone https://${{ secrets.SELF_GITHUB_SECRETS }}@github.com/${REPO_PATH}.git app/
+          cd app/
           git fetch --all --tags
 
       - name: 🏷️ Get version
         id: version
         run: |
+          # 进入私有仓库目录获取信息
+          cd app/
           # 获取私有仓库的当前提交信息
           PRIVATE_COMMIT=$(git rev-parse HEAD)
           PRIVATE_COMMIT_SHORT=$(git rev-parse --short HEAD)
@@ -267,6 +282,9 @@ jobs:
         run: |
           echo "Generating changelog..."
 
+          # 进入私有仓库目录
+          cd app/
+
           # 确保获取最新的私有仓库信息
           git fetch --all
 
@@ -290,6 +308,12 @@ jobs:
           if [[ -z "$COMMITS" ]]; then
             COMMITS="- 构建和发布应用程序 ($CURRENT_COMMIT_SHORT)"
           fi
+
+          echo "Found commits from private repo:"
+          echo "$COMMITS"
+
+          # 返回根目录
+          cd ..
 
           # 获取触发仓库的提交信息
           TRIGGER_INFO_SECTION=""
