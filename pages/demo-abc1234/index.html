@@ -400,11 +400,53 @@
                     <i className="fas fa-code-commit mr-3 text-purple-500"></i>
                     提交记录
                   </h2>
-                  {changelogSections["私有仓库最新提交"] ? (
-                    renderCommitList(changelogSections["私有仓库最新提交"])
-                  ) : (
-                    <p className="text-gray-500">暂无提交记录</p>
-                  )}
+                  {(() => {
+                    // 查找所有分支相关的节
+                    const branchSections = Object.keys(changelogSections).filter(key => 
+                      key.includes('分支最新提交')
+                    );
+                    
+                    if (branchSections.length > 0) {
+                      return (
+                        <div className="space-y-4">
+                          {branchSections.map(sectionKey => {
+                            const branchMatch = sectionKey.match(/`([^`]+)`/);
+                            const branchName = branchMatch ? branchMatch[1] : sectionKey;
+                            const content = changelogSections[sectionKey];
+                            
+                            // 解析该分支的提交
+                            const lines = content.split("\\n").filter(line => line.trim());
+                            const commits = lines
+                              .filter(line => line.trim().startsWith("- "))
+                              .map(line => line.replace(/^\\s*-\\s*/, ""));
+                            
+                            if (commits.length === 0) return null;
+                            
+                            return (
+                              <div key={sectionKey} className="bg-white rounded-lg p-4 border border-gray-200">
+                                <h4 className="font-semibold text-gray-800 mb-3 flex items-center">
+                                  <i className="fas fa-code-branch mr-2 text-blue-500"></i>
+                                  {branchName} 分支
+                                </h4>
+                                <div className="space-y-2">
+                                  {commits.map((commitText, idx) => (
+                                    <div
+                                      key={idx}
+                                      className="commit-item p-2 rounded border-l-4 border-blue-200"
+                                    >
+                                      <div dangerouslySetInnerHTML={{ __html: commitText }} />
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    } else {
+                      return <p className="text-gray-500">暂无提交记录</p>;
+                    }
+                  })()}
                 </div>
               )}
 
