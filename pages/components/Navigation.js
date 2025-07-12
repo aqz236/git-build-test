@@ -38,5 +38,5 @@ function Navigation({ activeTab, onTabChange }) {
   );
 }
 
-// 暴露到全局作用域
-window.Navigation = Navigation;
+// ES6 默认导出
+export default Navigation;

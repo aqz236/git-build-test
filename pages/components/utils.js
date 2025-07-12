@@ -180,7 +180,5 @@ async function fetchReleaseAssets(
   }
 }
 
-// 暴露到全局作用域
-window.parseChangelog = parseChangelog;
-window.copyToClipboard = copyToClipboard;
-window.fetchReleaseAssets = fetchReleaseAssets;
+// ES6 导出
+export { parseChangelog, formatDate, copyToClipboard, fetchReleaseAssets };

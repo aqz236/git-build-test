@@ -1,3 +1,5 @@
+import { formatDate } from './utils.js';
+
 /**
  * Header组件 - 显示版本信息和基本信息
  * @param {Object} props
@@ -5,22 +7,6 @@
  * @returns {React.ReactElement}
  */
 function Header({ releaseData }) {
-  /**
-   * 格式化日期
-   * @param {string} dateString - 日期字符串
-   * @returns {string} 格式化后的日期
-   */
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleString("zh-CN", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-  };
 
   return (
     <header className="gradient-bg text-white py-12">
@@ -62,5 +48,5 @@ function Header({ releaseData }) {
   );
 }
 
-// 暴露到全局作用域
-window.Header = Header;
+// ES6 默认导出
+export default Header;

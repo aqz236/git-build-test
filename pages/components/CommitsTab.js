@@ -130,5 +130,5 @@ function CommitsTab({ branches, branchData, activeBranch, onBranchChange }) {
   );
 }
 
-// 暴露到全局作用域
-window.CommitsTab = CommitsTab;
+// ES6 默认导出
+export default CommitsTab;

@@ -138,17 +138,9 @@
   <body class="bg-gray-50 min-h-screen">
     <div id="root"></div>
 
-    <!-- 加载组件 -->
-    <script src="./components/types.js"></script>
-    <script src="./components/utils.js"></script>
-    <script src="./components/Header.js"></script>
-    <script src="./components/Navigation.js"></script>
-    <script src="./components/OverviewTab.js"></script>
-    <script src="./components/CommitsTab.js"></script>
-    <script src="./components/DownloadTab.js"></script>
-    <script src="./components/TechTab.js"></script>
-    <script src="./components/App.js"></script>
-
+    <!-- 加载所有组件 -->
+    <script type="module" src="./components/index.js"></script>
+    
     <script type="text/babel">
       // 从模板变量中获取数据
       const releaseData = {
@@ -170,8 +162,14 @@
         downloadFiles: [], // 将通过API动态获取
       };
 
-      // 渲染应用
-      ReactDOM.render(<App releaseData={releaseData} />, document.getElementById("root"));
+      // 等待模块加载完成后渲染应用
+      setTimeout(() => {
+        if (window.App) {
+          ReactDOM.render(<App releaseData={releaseData} />, document.getElementById("root"));
+        } else {
+          console.error('App component not loaded');
+        }
+      }, 100);
     </script>
   </body>
 </html>
