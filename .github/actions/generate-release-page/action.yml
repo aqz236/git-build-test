@@ -63,13 +63,15 @@ runs:
         TRIGGER_COMMIT="${{ github.sha }}"
         TRIGGER_AUTHOR="${{ github.actor }}"
 
-        # 获取提交消息
+        # 获取提交消息（转义特殊字符）
         COMMIT_MESSAGE=""
         if [[ "${{ github.event_name }}" == "push" ]]; then
           COMMIT_MESSAGE="${{ github.event.head_commit.message }}"
         elif [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
           COMMIT_MESSAGE="${{ github.event.client_payload.commit_message }}"
         fi
+        # 转义特殊字符以避免 sed 错误
+        COMMIT_MESSAGE=$(echo "$COMMIT_MESSAGE" | sed 's/[\/&]/\\&/g' | tr '\n' ' ' | tr '\r' ' ')
 
         # 创建发布目录
         RELEASE_DIR="pages/${CURRENT_COMMIT}"
@@ -85,21 +87,41 @@ runs:
         # 复制并处理模板文件
         cp pages/release-template.html "$RELEASE_DIR/index.html"
 
-        # 简单的替换，避免复杂的多行处理
-        sed -i.bak "s|{{VERSION}}|${{ inputs.version }}|g" "$RELEASE_DIR/index.html"
-        sed -i.bak "s|{{CREATED_AT}}|$CREATED_AT|g" "$RELEASE_DIR/index.html"
-        sed -i.bak "s|{{COMMIT_HASH}}|$CURRENT_COMMIT|g" "$RELEASE_DIR/index.html"
-        sed -i.bak "s|{{PRIVATE_BRANCH}}|$CURRENT_BRANCH|g" "$RELEASE_DIR/index.html"
-        sed -i.bak "s|{{TRIGGER_EVENT}}|$TRIGGER_EVENT|g" "$RELEASE_DIR/index.html"
-        sed -i.bak "s|{{TRIGGER_REPO}}|$TRIGGER_REPO|g" "$RELEASE_DIR/index.html"
-        sed -i.bak "s|{{TRIGGER_BRANCH}}|$TRIGGER_BRANCH|g" "$RELEASE_DIR/index.html"
-        sed -i.bak "s|{{TRIGGER_COMMIT}}|$TRIGGER_COMMIT|g" "$RELEASE_DIR/index.html"
-        sed -i.bak "s|{{TRIGGER_AUTHOR}}|$TRIGGER_AUTHOR|g" "$RELEASE_DIR/index.html"
-        sed -i.bak "s|{{COMMIT_MESSAGE}}|$COMMIT_MESSAGE|g" "$RELEASE_DIR/index.html"
-        sed -i.bak "s|{{GITHUB_BASE_URL}}|$GITHUB_BASE_URL|g" "$RELEASE_DIR/index.html"
-        sed -i.bak "s|{{REPO_PATH}}|$REPO_PATH|g" "$RELEASE_DIR/index.html"
+        # 使用 printf 代替 sed 来避免特殊字符问题
+        # 安全地替换模板变量
+        
+        # 转义函数
+        escape_for_sed() {
+          printf '%s\n' "$1" | sed 's/[[\.*^$()+?{|]/\\&/g'
+        }
 
-        # 处理 changelog - 暂时用简单的替换，后续可以优化
+        # 安全的替换
+        SAFE_VERSION=$(escape_for_sed "${{ inputs.version }}")
+        SAFE_CREATED_AT=$(escape_for_sed "$CREATED_AT")
+        SAFE_COMMIT_HASH=$(escape_for_sed "$CURRENT_COMMIT")
+        SAFE_PRIVATE_BRANCH=$(escape_for_sed "$CURRENT_BRANCH")
+        SAFE_TRIGGER_EVENT=$(escape_for_sed "$TRIGGER_EVENT")
+        SAFE_TRIGGER_REPO=$(escape_for_sed "$TRIGGER_REPO")
+        SAFE_TRIGGER_BRANCH=$(escape_for_sed "$TRIGGER_BRANCH")
+        SAFE_TRIGGER_COMMIT=$(escape_for_sed "$TRIGGER_COMMIT")
+        SAFE_TRIGGER_AUTHOR=$(escape_for_sed "$TRIGGER_AUTHOR")
+        SAFE_COMMIT_MESSAGE=$(escape_for_sed "$COMMIT_MESSAGE")
+        SAFE_GITHUB_BASE_URL=$(escape_for_sed "$GITHUB_BASE_URL")
+        SAFE_REPO_PATH=$(escape_for_sed "$REPO_PATH")
+
+        # 执行替换
+        sed -i.bak "s|{{VERSION}}|${SAFE_VERSION}|g" "$RELEASE_DIR/index.html"
+        sed -i.bak "s|{{CREATED_AT}}|${SAFE_CREATED_AT}|g" "$RELEASE_DIR/index.html"
+        sed -i.bak "s|{{COMMIT_HASH}}|${SAFE_COMMIT_HASH}|g" "$RELEASE_DIR/index.html"
+        sed -i.bak "s|{{PRIVATE_BRANCH}}|${SAFE_PRIVATE_BRANCH}|g" "$RELEASE_DIR/index.html"
+        sed -i.bak "s|{{TRIGGER_EVENT}}|${SAFE_TRIGGER_EVENT}|g" "$RELEASE_DIR/index.html"
+        sed -i.bak "s|{{TRIGGER_REPO}}|${SAFE_TRIGGER_REPO}|g" "$RELEASE_DIR/index.html"
+        sed -i.bak "s|{{TRIGGER_BRANCH}}|${SAFE_TRIGGER_BRANCH}|g" "$RELEASE_DIR/index.html"
+        sed -i.bak "s|{{TRIGGER_COMMIT}}|${SAFE_TRIGGER_COMMIT}|g" "$RELEASE_DIR/index.html"
+        sed -i.bak "s|{{TRIGGER_AUTHOR}}|${SAFE_TRIGGER_AUTHOR}|g" "$RELEASE_DIR/index.html"
+        sed -i.bak "s|{{COMMIT_MESSAGE}}|${SAFE_COMMIT_MESSAGE}|g" "$RELEASE_DIR/index.html"
+        sed -i.bak "s|{{GITHUB_BASE_URL}}|${SAFE_GITHUB_BASE_URL}|g" "$RELEASE_DIR/index.html"
+        sed -i.bak "s|{{REPO_PATH}}|${SAFE_REPO_PATH}|g" "$RELEASE_DIR/index.html"
         sed -i.bak "s|{{CHANGELOG}}|查看完整 changelog|g" "$RELEASE_DIR/index.html"
 
         # 清理备份文件
