@@ -48,5 +48,5 @@ function Header({ releaseData }) {
   );
 }
 
-// ES6 默认导出
-export default Header;
+// 暴露到全局作用域
+window.Header = Header;

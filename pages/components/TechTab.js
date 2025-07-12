@@ -38,5 +38,5 @@ function TechTab() {
   );
 }
 
-// ES6 默认导出
-export default TechTab;
+// 暴露到全局作用域
+window.TechTab = TechTab;

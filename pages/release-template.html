@@ -138,17 +138,15 @@
   <body class="bg-gray-50 min-h-screen">
     <div id="root"></div>
 
-    <!-- 加载所有组件 -->
-    <script type="module">
-      // 导入所有组件并通知主脚本
-      import('./components/index.js').then(() => {
-        // 发送自定义事件通知组件已加载
-        window.dispatchEvent(new CustomEvent('componentsLoaded'));
-      }).catch(error => {
-        console.error('Failed to load components:', error);
-        window.dispatchEvent(new CustomEvent('componentsError', { detail: error }));
-      });
-    </script>
+    <!-- 加载工具函数和组件 -->
+    <script src="./components/utils.js"></script>
+    <script src="./components/Header.js"></script>
+    <script src="./components/Navigation.js"></script>
+    <script src="./components/OverviewTab.js"></script>
+    <script src="./components/CommitsTab.js"></script>
+    <script src="./components/DownloadTab.js"></script>
+    <script src="./components/TechTab.js"></script>
+    <script src="./components/App.js"></script>
     
     <script type="text/babel">
       // 从模板变量中获取数据
@@ -171,26 +169,9 @@
         downloadFiles: [], // 将通过API动态获取
       };
 
-      // 监听组件加载完成事件
-      window.addEventListener('componentsLoaded', () => {
-        if (window.App) {
-          ReactDOM.render(<App releaseData={releaseData} />, document.getElementById("root"));
-        } else {
-          console.error('App component still not available after loading');
-        }
-      });
-
-      // 监听组件加载错误事件
-      window.addEventListener('componentsError', (event) => {
-        console.error('Component loading error:', event.detail);
-        document.getElementById("root").innerHTML = `
-          <div style="padding: 2rem; text-align: center; color: #ef4444;">
-            <h2>加载组件失败</h2>
-            <p>请刷新页面重试</p>
-            <p style="font-size: 0.875rem; margin-top: 1rem;">错误详情: ${event.detail.message}</p>
-          </div>
-        `;
-      });
+      // 直接渲染应用
+      ReactDOM.render(<App releaseData={releaseData} />, document.getElementById("root"));
+    </script>
     </script>
   </body>
 </html>

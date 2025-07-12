@@ -102,5 +102,5 @@ function OverviewTab({ releaseData, copied, onCopy }) {
   );
 }
 
-// ES6 默认导出
-export default OverviewTab;
+// 暴露到全局作用域
+window.OverviewTab = OverviewTab;

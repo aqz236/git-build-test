@@ -189,5 +189,5 @@ function DownloadTab({ downloadFiles, loadingAssets, assetsError, onRetry }) {
   );
 }
 
-// ES6 默认导出
-export default DownloadTab;
+// 暴露到全局作用域
+window.DownloadTab = DownloadTab;

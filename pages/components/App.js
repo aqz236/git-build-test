@@ -1,11 +1,3 @@
-import Header from './Header.js';
-import Navigation from './Navigation.js';
-import OverviewTab from './OverviewTab.js';
-import CommitsTab from './CommitsTab.js';
-import DownloadTab from './DownloadTab.js';
-import TechTab from './TechTab.js';
-import { parseChangelog, copyToClipboard, fetchReleaseAssets } from './utils.js';
-
 /**
  * 主应用组件
  * @param {Object} props
@@ -117,5 +109,5 @@ function App({ releaseData }) {
   );
 }
 
-// ES6 默认导出
-export default App;
+// 暴露到全局作用域
+window.App = App;
