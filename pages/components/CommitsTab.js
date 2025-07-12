@@ -29,9 +29,7 @@ function CommitsTab({ branches, branchData, activeBranch, onBranchChange }) {
         >
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <p className="text-gray-800 font-medium mb-1">
-                {message.trim()}
-              </p>
+              <p className="text-gray-800 font-medium mb-1">{message.trim()}</p>
               <div className="flex items-center space-x-2">
                 <span className="inline-flex items-center px-2 py-1 rounded text-xs font-mono bg-gray-100 text-gray-600">
                   <i className="fas fa-code-commit mr-1"></i>
@@ -118,8 +116,8 @@ function CommitsTab({ branches, branchData, activeBranch, onBranchChange }) {
                       {activeBranch} 分支
                     </span>
                     <span className="flex items-center">
-                      <i className="fas fa-list-ol mr-2"></i>
-                      共 {branchData[activeBranch]?.length || 0} 个提交
+                      <i className="fas fa-list-ol mr-2"></i>共{" "}
+                      {branchData[activeBranch]?.length || 0} 个提交
                     </span>
                   </div>
                 </div>
@@ -131,3 +129,6 @@ function CommitsTab({ branches, branchData, activeBranch, onBranchChange }) {
     </div>
   );
 }
+
+// 暴露到全局作用域
+window.CommitsTab = CommitsTab;

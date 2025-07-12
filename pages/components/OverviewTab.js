@@ -101,3 +101,6 @@ function OverviewTab({ releaseData, copied, onCopy }) {
     </div>
   );
 }
+
+// 暴露到全局作用域
+window.OverviewTab = OverviewTab;

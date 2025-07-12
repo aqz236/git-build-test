@@ -110,7 +110,9 @@ function DownloadTab({ downloadFiles, loadingAssets, assetsError, onRetry }) {
           </div>
         ) : downloadFiles && downloadFiles.length > 0 ? (
           <div className="grid gap-4 mb-8">
-            {downloadFiles.map((file, index) => renderDownloadFile(file, index))}
+            {downloadFiles.map((file, index) =>
+              renderDownloadFile(file, index)
+            )}
           </div>
         ) : (
           <div className="text-center py-12 text-gray-500">
@@ -139,9 +141,7 @@ function DownloadTab({ downloadFiles, loadingAssets, assetsError, onRetry }) {
                 </p>
                 <p>2. 解压后添加执行权限:</p>
                 <pre className="p-3 text-xs">
-                  <code>
-                    chmod +x app-*-darwin-x64 && ./app-*-darwin-x64
-                  </code>
+                  <code>chmod +x app-*-darwin-x64 && ./app-*-darwin-x64</code>
                 </pre>
                 <p className="text-amber-600">
                   <i className="fas fa-exclamation-triangle mr-1"></i>
@@ -165,9 +165,7 @@ function DownloadTab({ downloadFiles, loadingAssets, assetsError, onRetry }) {
                 </p>
                 <p>2. 解压后添加执行权限:</p>
                 <pre className="p-3 text-xs">
-                  <code>
-                    chmod +x app-*-linux-x64 && ./app-*-linux-x64
-                  </code>
+                  <code>chmod +x app-*-linux-x64 && ./app-*-linux-x64</code>
                 </pre>
               </div>
             </div>
@@ -190,3 +188,6 @@ function DownloadTab({ downloadFiles, loadingAssets, assetsError, onRetry }) {
     </div>
   );
 }
+
+// 暴露到全局作用域
+window.DownloadTab = DownloadTab;

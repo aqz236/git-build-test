@@ -25,7 +25,7 @@ function App({ releaseData }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      console.error('复制失败:', error);
+      console.error("复制失败:", error);
     }
   };
 
@@ -75,7 +75,7 @@ function App({ releaseData }) {
     <div className="min-h-screen">
       <Header releaseData={releaseData} />
       <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
-      
+
       <main className="container mx-auto px-6 py-8">
         {activeTab === "overview" && (
           <OverviewTab
@@ -108,3 +108,6 @@ function App({ releaseData }) {
     </div>
   );
 }
+
+// 暴露到全局作用域
+window.App = App;

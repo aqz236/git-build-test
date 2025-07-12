@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{VERSION}} - 发布详情</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <style>
+      /* ...existing styles... */
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
+          "Oxygen", "Ubuntu", "Cantarell", sans-serif;
+      }
+      .gradient-bg {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      }
+      .card-hover {
+        transition: all 0.3s ease;
+      }
+      .card-hover:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+      }
+      .commit-item {
+        transition: all 0.2s ease;
+      }
+      .commit-item:hover {
+        background-color: #f8fafc;
+      }
+      .tech-badge {
+        background: linear-gradient(45deg, #ec4899, #be185d);
+      }
+      .download-badge {
+        background: linear-gradient(45deg, #10b981, #059669);
+      }
+      pre {
+        background: #1e293b;
+        color: #e2e8f0;
+        border-radius: 8px;
+        overflow-x: auto;
+      }
+      .highlight {
+        background-color: #fef3cd;
+        padding: 2px 4px;
+        border-radius: 3px;
+      }
+      .copy-button {
+        transition: all 0.2s ease;
+      }
+      .copy-button:hover {
+        background-color: #374151;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-50 min-h-screen">
+    <div id="root"></div>
+
+    <script type="text/babel">
+      const { useState, useEffect } = React;
+
+      // 数据类型定义 (JSDoc style for type safety)
+      /**
+       * @typedef {Object} ReleaseData
+       * @property {string} version
+       * @property {string} createdAt
+       * @property {string} commitHash
+       * @property {string} triggerRepo
+       * @property {string} releaseHash
+       * @property {Array} downloadFiles
+       */
+
+      // Utility functions
+      const utils = {
+        formatDate: (dateString) => {
+          const date = new Date(dateString);
+          return date.toLocaleString("zh-CN", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          });
+        },
+
+        copyToClipboard: async (text) => {
+          await navigator.clipboard.writeText(text);
+        },
+
+        formatFileSize: (bytes) => {
+          const units = ["B", "KB", "MB", "GB"];
+          let size = bytes;
+          let unitIndex = 0;
+          while (size >= 1024 && unitIndex < units.length - 1) {
+            size /= 1024;
+            unitIndex++;
+          }
+          return `${Math.round(size * 100) / 100} ${units[unitIndex]}`;
+        },
+      };
+
+      // API functions
+      const api = {
+        fetchReleaseAssets: async (triggerRepo, version, releaseHash) => {
+          const apiBase = `https://api.github.com/repos/${triggerRepo}`;
+
+          try {
+            // 方法1: 通过版本号获取
+            let response = await fetch(`${apiBase}/releases/tags/${version}`);
+            if (response.ok) {
+              const release = await response.json();
+              return release.assets || [];
+            }
+
+            // 方法2: 通过commit hash查找
+            response = await fetch(`${apiBase}/releases?per_page=50`);
+            if (response.ok) {
+              const releases = await response.json();
+              const matchingRelease = releases.find(
+                (release) =>
+                  release.target_commitish === releaseHash ||
+                  release.target_commitish?.startsWith(
+                    releaseHash?.substring(0, 7)
+                  )
+              );
+              if (matchingRelease) {
+                return matchingRelease.assets || [];
+              }
+            }
+
+            // 方法3: 最新release
+            response = await fetch(`${apiBase}/releases/latest`);
+            if (response.ok) {
+              const release = await response.json();
+              return release.assets || [];
+            }
+
+            return [];
+          } catch (error) {
+            console.error("Error fetching assets:", error);
+            throw error;
+          }
+        },
+      };
+
+      // Header Component
+      const Header = ({ releaseData }) => (
+        <header className="gradient-bg text-white">
+          <div className="max-w-7xl mx-auto px-6 py-12">
+            <div className="text-center">
+              <h1 className="text-4xl font-bold mb-4">
+                🚀 发布详情 - {releaseData.version}
+              </h1>
+              <p className="text-xl opacity-90 mb-6">
+                发布时间: {utils.formatDate(releaseData.createdAt)}
+              </p>
+              <div className="flex flex-wrap justify-center gap-4 text-sm">
+                <span className="bg-white bg-opacity-20 px-3 py-1 rounded-full">
+                  <i className="fas fa-code-branch mr-2"></i>
+                  {releaseData.triggerRepo}
+                </span>
+                <span className="bg-white bg-opacity-20 px-3 py-1 rounded-full">
+                  <i className="fas fa-code-commit mr-2"></i>
+                  {releaseData.releaseHash?.substring(0, 7)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </header>
+      );
+
+      // Navigation Component
+      const Navigation = ({ activeTab, onTabChange }) => {
+        const tabs = [
+          { id: "overview", label: "概览", icon: "fas fa-info-circle" },
+          { id: "download", label: "下载", icon: "fas fa-download" },
+          { id: "changelog", label: "变更日志", icon: "fas fa-list" },
+        ];
+
+        return (
+          <nav className="bg-white shadow-sm border-b border-gray-200">
+            <div className="max-w-7xl mx-auto px-6">
+              <div className="flex space-x-8">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => onTabChange(tab.id)}
+                    className={`py-4 px-2 border-b-2 font-medium text-sm transition-colors ${
+                      activeTab === tab.id
+                        ? "border-blue-500 text-blue-600"
+                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    }`}
+                  >
+                    <i className={`${tab.icon} mr-2`}></i>
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </nav>
+        );
+      };
+
+      // Download Tab Component
+      const DownloadTab = ({ downloadFiles, loading, error, onRetry }) => {
+        if (loading) {
+          return (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+              <span className="ml-3 text-gray-600">正在加载构建产物...</span>
+            </div>
+          );
+        }
+
+        if (error) {
+          return (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+              <div className="flex items-center mb-4">
+                <i className="fas fa-exclamation-triangle text-red-500 mr-3"></i>
+                <span className="text-red-700">{error}</span>
+              </div>
+              <button
+                onClick={onRetry}
+                className="px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors"
+              >
+                <i className="fas fa-sync-alt mr-2"></i>
+                重试加载
+              </button>
+            </div>
+          );
+        }
+
+        if (!downloadFiles.length) {
+          return (
+            <div className="text-center py-12 text-gray-500">
+              <i className="fas fa-inbox text-4xl mb-4"></i>
+              <p>暂无可下载的构建产物</p>
+            </div>
+          );
+        }
+
+        return (
+          <div className="grid gap-4">
+            {downloadFiles.map((file, index) => (
+              <div
+                key={index}
+                className="bg-white rounded-lg p-6 border border-gray-200 hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center flex-1">
+                    <i className="fas fa-file-archive text-blue-500 text-2xl mr-4"></i>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-gray-800 mb-1">
+                        {file.name}
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        大小: {utils.formatFileSize(file.size)} • 下载:{" "}
+                        {file.download_count} 次
+                      </p>
+                    </div>
+                  </div>
+                  <a
+                    href={file.browser_download_url}
+                    download
+                    className="download-badge text-white px-6 py-3 rounded-lg hover:shadow-lg transition-all flex items-center font-medium"
+                  >
+                    <i className="fas fa-download mr-2"></i>
+                    下载
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      };
+
+      // Overview Tab Component
+      const OverviewTab = ({ releaseData }) => (
+        <div className="grid gap-6">
+          <div className="bg-white rounded-lg p-6 shadow-sm">
+            <h3 className="text-lg font-semibold mb-4">发布信息</h3>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <span className="text-gray-600">版本号:</span>
+                <span className="ml-2 font-mono">{releaseData.version}</span>
+              </div>
+              <div>
+                <span className="text-gray-600">提交哈希:</span>
+                <span className="ml-2 font-mono">{releaseData.commitHash}</span>
+              </div>
+              <div>
+                <span className="text-gray-600">触发仓库:</span>
+                <span className="ml-2">{releaseData.triggerRepo}</span>
+              </div>
+              <div>
+                <span className="text-gray-600">发布时间:</span>
+                <span className="ml-2">
+                  {utils.formatDate(releaseData.createdAt)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+
+      // Changelog Tab Component
+      const ChangelogTab = ({ changelog }) => (
+        <div className="bg-white rounded-lg p-6 shadow-sm">
+          <h3 className="text-lg font-semibold mb-4">变更日志</h3>
+          <pre className="whitespace-pre-wrap text-sm p-4 rounded">
+            {changelog}
+          </pre>
+        </div>
+      );
+
+      // Main App Component
+      const App = ({ releaseData }) => {
+        const [activeTab, setActiveTab] = useState("overview");
+        const [downloadFiles, setDownloadFiles] = useState([]);
+        const [loading, setLoading] = useState(true);
+        const [error, setError] = useState(null);
+
+        const fetchAssets = async () => {
+          setLoading(true);
+          setError(null);
+          try {
+            const assets = await api.fetchReleaseAssets(
+              releaseData.triggerRepo,
+              releaseData.version,
+              releaseData.releaseHash
+            );
+            setDownloadFiles(assets);
+          } catch (err) {
+            setError(`获取构建产物失败: ${err.message}`);
+          } finally {
+            setLoading(false);
+          }
+        };
+
+        useEffect(() => {
+          fetchAssets();
+        }, []);
+
+        const renderTabContent = () => {
+          switch (activeTab) {
+            case "overview":
+              return <OverviewTab releaseData={releaseData} />;
+            case "download":
+              return (
+                <DownloadTab
+                  downloadFiles={downloadFiles}
+                  loading={loading}
+                  error={error}
+                  onRetry={fetchAssets}
+                />
+              );
+            case "changelog":
+              return <ChangelogTab changelog={releaseData.changelog} />;
+            default:
+              return <OverviewTab releaseData={releaseData} />;
+          }
+        };
+
+        return (
+          <div className="min-h-screen bg-gray-50">
+            <Header releaseData={releaseData} />
+            <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
+            <main className="max-w-7xl mx-auto px-6 py-8">
+              {renderTabContent()}
+            </main>
+          </div>
+        );
+      };
+
+      // 从模板变量中获取数据
+      const releaseData = {
+        version: "{{VERSION}}",
+        createdAt: "{{CREATED_AT}}",
+        commitHash: "{{COMMIT_HASH}}",
+        privateBranch: "{{PRIVATE_BRANCH}}",
+        triggerEvent: "{{TRIGGER_EVENT}}",
+        triggerRepo: "{{TRIGGER_REPO}}",
+        triggerBranch: "{{TRIGGER_BRANCH}}",
+        triggerCommit: "{{TRIGGER_COMMIT}}",
+        triggerAuthor: "{{TRIGGER_AUTHOR}}",
+        commitMessage: "{{COMMIT_MESSAGE}}",
+        changelog: `{{CHANGELOG}}`,
+        githubBaseUrl: "{{GITHUB_BASE_URL}}",
+        repoPath: "{{REPO_PATH}}",
+        releaseHash: "{{RELEASE_HASH}}",
+        releaseHashShort: "{{RELEASE_HASH_SHORT}}",
+      };
+
+      // 渲染应用
+      ReactDOM.render(
+        <App releaseData={releaseData} />,
+        document.getElementById("root")
+      );
+    </script>
+  </body>
+</html>

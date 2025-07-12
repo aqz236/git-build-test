@@ -37,3 +37,6 @@ function Navigation({ activeTab, onTabChange }) {
     </div>
   );
 }
+
+// 暴露到全局作用域
+window.Navigation = Navigation;

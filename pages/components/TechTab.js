@@ -37,3 +37,6 @@ function TechTab() {
     </div>
   );
 }
+
+// 暴露到全局作用域
+window.TechTab = TechTab;

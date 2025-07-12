@@ -28,15 +28,10 @@ function Header({ releaseData }) {
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center mb-4">
-              <a
-                href="../"
-                className="text-white hover:text-gray-200 mr-4"
-              >
+              <a href="../" className="text-white hover:text-gray-200 mr-4">
                 <i className="fas fa-arrow-left text-xl"></i>
               </a>
-              <h1 className="text-4xl font-bold">
-                版本 {releaseData.version}
-              </h1>
+              <h1 className="text-4xl font-bold">版本 {releaseData.version}</h1>
             </div>
             <div className="flex flex-wrap gap-4 text-sm opacity-90">
               <span className="flex items-center">
@@ -66,3 +61,6 @@ function Header({ releaseData }) {
     </header>
   );
 }
+
+// 暴露到全局作用域
+window.Header = Header;

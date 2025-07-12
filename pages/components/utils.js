@@ -70,17 +70,17 @@ async function copyToClipboard(text) {
   try {
     await navigator.clipboard.writeText(text);
   } catch (err) {
-    console.error('Failed to copy text: ', err);
+    console.error("Failed to copy text: ", err);
     // Fallback for older browsers
-    const textArea = document.createElement('textarea');
+    const textArea = document.createElement("textarea");
     textArea.value = text;
     document.body.appendChild(textArea);
     textArea.focus();
     textArea.select();
     try {
-      document.execCommand('copy');
+      document.execCommand("copy");
     } catch (err) {
-      console.error('Fallback: Unable to copy', err);
+      console.error("Fallback: Unable to copy", err);
     }
     document.body.removeChild(textArea);
   }
@@ -94,7 +94,12 @@ async function copyToClipboard(text) {
  * @param {string} releaseHashShort - 发布哈希短版本
  * @returns {Promise<import('./types.js').DownloadFile[]>}
  */
-async function fetchReleaseAssets(repository, version, releaseHash, releaseHashShort) {
+async function fetchReleaseAssets(
+  repository,
+  version,
+  releaseHash,
+  releaseHashShort
+) {
   const apiBase = `https://api.github.com/repos/${repository}`;
 
   console.log("🔍 Fetching release assets...");
@@ -174,3 +179,8 @@ async function fetchReleaseAssets(repository, version, releaseHash, releaseHashS
     }
   }
 }
+
+// 暴露到全局作用域
+window.parseChangelog = parseChangelog;
+window.copyToClipboard = copyToClipboard;
+window.fetchReleaseAssets = fetchReleaseAssets;
