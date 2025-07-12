@@ -2,8 +2,8 @@ name: 🚀 Build and Release from Private Repository
 
 # 📊 配置参数
 env:
-  CHANGELOG_COMMIT_COUNT: 10  # 每个分支显示的提交数量
-  CHANGELOG_BRANCHES: "main,dev"  # 要显示的分支列表（逗号分隔）
+  CHANGELOG_COMMIT_COUNT: 10 # 每个分支显示的提交数量
+  CHANGELOG_BRANCHES: "main,dev" # 要显示的分支列表（逗号分隔）
 
 on:
   push:
@@ -305,20 +305,30 @@ jobs:
           echo "Current private repo HEAD: $CURRENT_COMMIT"
           echo "Current private repo branch: $CURRENT_BRANCH"
 
-          # 直接获取最近的提交（不依赖标签）
-          echo "Getting recent commits from private repository..."
+          # 获取远程仓库 URL 来构建提交链接
+          REMOTE_URL=$(git remote get-url origin)
+          # 提取 owner/repo 格式
+          if [[ $REMOTE_URL == *"github.com"* ]]; then
+            REPO_PATH=$(echo $REMOTE_URL | sed 's|.*github.com[/:]\([^/]*\/[^/]*\).*|\1|' | sed 's|\.git$||')
+            GITHUB_BASE_URL="https://github.com/${REPO_PATH}"
+          else
+            GITHUB_BASE_URL=""
+          fi
           
+          echo "Repository path: $REPO_PATH"
+          echo "GitHub base URL: $GITHUB_BASE_URL"
+
           # 获取配置的分支列表和提交数量
           COMMIT_COUNT="${{ env.CHANGELOG_COMMIT_COUNT }}"
           BRANCH_LIST="${{ env.CHANGELOG_BRANCHES }}"
-          
+
           echo "Fetching commits from branches: $BRANCH_LIST"
           echo "Commits per branch: $COMMIT_COUNT"
-          
+
           # 分别获取每个分支的提交
           COMMITS_SECTION=""
           IFS=',' read -ra BRANCHES <<< "$BRANCH_LIST"
-          
+
           for branch in "${BRANCHES[@]}"; do
             # 去除空格
             branch=$(echo "$branch" | xargs)
@@ -328,8 +338,14 @@ jobs:
             if git show-ref --verify --quiet refs/remotes/origin/$branch; then
               echo "Branch $branch exists, fetching commits..."
               
-              # 获取该分支的提交
-              BRANCH_COMMITS=$(git log origin/$branch --oneline -$COMMIT_COUNT --pretty=format:"  - %s (%h)" 2>/dev/null || echo "  - 无提交记录")
+              # 获取该分支的提交，带超链接
+              if [[ -n "$GITHUB_BASE_URL" ]]; then
+                # 带超链接的版本
+                BRANCH_COMMITS=$(git log origin/$branch --oneline -$COMMIT_COUNT --pretty=format:"  - %s ([%h]($GITHUB_BASE_URL/commit/%H))" 2>/dev/null || echo "  - 无提交记录")
+              else
+                # 无链接的备用版本
+                BRANCH_COMMITS=$(git log origin/$branch --oneline -$COMMIT_COUNT --pretty=format:"  - %s (%h)" 2>/dev/null || echo "  - 无提交记录")
+              fi
               
               if [[ -n "$BRANCH_COMMITS" ]]; then
                 # 构建分支提交信息
@@ -347,7 +363,7 @@ jobs:
               COMMITS_SECTION="${COMMITS_SECTION}${BRANCH_SECTION}"
             fi
           done
-          
+
           # 如果没有获取到任何提交信息，使用默认信息
           if [[ -z "$COMMITS_SECTION" ]]; then
             COMMITS_SECTION="#### 📋 当前分支最新提交"$'\n'"  - 构建和发布应用程序 ($CURRENT_COMMIT_SHORT)"
