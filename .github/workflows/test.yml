@@ -1,0 +1,55 @@
+name: 🧪 Test Application
+
+on:
+  pull_request:
+    branches: [main, dev]
+  push:
+    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: 🧪 Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    environment: elysiajs-rapid
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 📥 Clone private repository
+        uses: ./.github/actions/clone-private-repo
+        with:
+          repository-url: ${{ secrets.REPOSITORY_URL }}
+          github-token: ${{ secrets.SELF_GITHUB_SECRETS }}
+
+      - name: 🟢 Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: 📦 Install dependencies
+        run: |
+          cd app/
+          bun install --frozen-lockfile
+
+      - name: 🔍 Lint code
+        run: |
+          cd app/
+          bun run lint
+
+      - name: 🧪 Run tests
+        run: |
+          cd app/
+          # 如果有测试命令的话
+          if grep -q '"test"' package.json; then
+            bun run test
+          else
+            echo "No test script found in package.json"
+          fi

@@ -1,0 +1,45 @@
+name: '🔑 Clone Private Repository'
+description: 'Clone the private repository and fetch all branches and tags'
+
+inputs:
+  repository-url:
+    description: 'Repository URL (owner/repo format or full URL)'
+    required: true
+  github-token:
+    description: 'GitHub token with access to private repository'
+    required: true
+  target-directory:
+    description: 'Target directory to clone into'
+    required: false
+    default: 'app'
+
+outputs:
+  repo-path:
+    description: 'The repository path in owner/repo format'
+    value: ${{ steps.clone.outputs.repo-path }}
+
+runs:
+  using: composite
+  steps:
+    - name: 📥 Clone private repository
+      id: clone
+      shell: bash
+      run: |
+        # REPOSITORY_URL 应该是: owner/repo 格式，例如 aqz236/your-repo
+        # 如果是完整URL，需要提取 owner/repo 部分
+        REPO_URL="${{ inputs.repository-url }}"
+        if [[ $REPO_URL == https://github.com/* ]]; then
+          # 从完整URL中提取 owner/repo
+          REPO_PATH=$(echo $REPO_URL | sed 's|https://github.com/||' | sed 's|\.git$||')
+        else
+          # 已经是 owner/repo 格式
+          REPO_PATH=$REPO_URL
+        fi
+
+        echo "Cloning repository: $REPO_PATH"
+        git clone https://${{ inputs.github-token }}@github.com/${REPO_PATH}.git ${{ inputs.target-directory }}/
+        cd ${{ inputs.target-directory }}/
+        git fetch --all --tags
+
+        echo "repo-path=$REPO_PATH" >> $GITHUB_OUTPUT
+        echo "Repository cloned successfully: $REPO_PATH"

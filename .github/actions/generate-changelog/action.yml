@@ -1,0 +1,191 @@
+name: '📋 Generate Changelog'
+description: 'Generate changelog from private repository commits'
+
+inputs:
+  app-directory:
+    description: 'Directory containing the private repository'
+    required: false
+    default: 'app'
+  version:
+    description: 'Version string for the changelog'
+    required: true
+  commit-count:
+    description: 'Number of commits to show per branch'
+    required: false
+    default: '10'
+  branches:
+    description: 'Comma-separated list of branches to include'
+    required: false
+    default: 'dev,main'
+
+outputs:
+  changelog:
+    description: 'Generated changelog content'
+    value: ${{ steps.changelog.outputs.changelog }}
+
+runs:
+  using: composite
+  steps:
+    - name: 📋 Generate changelog
+      id: changelog
+      shell: bash
+      run: |
+        echo "Generating changelog..."
+
+        # 进入私有仓库目录
+        cd ${{ inputs.app-directory }}/
+
+        # 确保获取最新的私有仓库信息
+        git fetch --all
+
+        # 获取当前私有仓库的最新提交信息
+        CURRENT_COMMIT=$(git rev-parse HEAD)
+        CURRENT_COMMIT_SHORT=$(git rev-parse --short HEAD)
+        CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+        # 获取触发仓库的信息
+        TRIGGER_COMMIT="${{ github.sha }}"
+        TRIGGER_COMMIT_SHORT="${TRIGGER_COMMIT:0:7}"
+
+        echo "Current private repo HEAD: $CURRENT_COMMIT"
+        echo "Current private repo branch: $CURRENT_BRANCH"
+
+        # 获取远程仓库 URL 来构建提交链接
+        REMOTE_URL=$(git remote get-url origin)
+        # 提取 owner/repo 格式
+        if [[ $REMOTE_URL == *"github.com"* ]]; then
+          REPO_PATH=$(echo $REMOTE_URL | sed 's|.*github.com[/:]\([^/]*\/[^/]*\).*|\1|' | sed 's|\.git$||')
+          GITHUB_BASE_URL="https://github.com/${REPO_PATH}"
+        else
+          GITHUB_BASE_URL=""
+        fi
+
+        echo "Repository path: $REPO_PATH"
+        echo "GitHub base URL: $GITHUB_BASE_URL"
+
+        # 获取配置的分支列表和提交数量
+        COMMIT_COUNT="${{ inputs.commit-count }}"
+        BRANCH_LIST="${{ inputs.branches }}"
+
+        echo "Fetching commits from branches: $BRANCH_LIST"
+        echo "Commits per branch: $COMMIT_COUNT"
+
+        # 分别获取每个分支的提交
+        COMMITS_SECTION=""
+        IFS=',' read -ra BRANCHES <<< "$BRANCH_LIST"
+
+        for branch in "${BRANCHES[@]}"; do
+          # 去除空格
+          branch=$(echo "$branch" | xargs)
+          echo "Processing branch: $branch"
+          
+          # 检查分支是否存在
+          if git show-ref --verify --quiet refs/remotes/origin/$branch; then
+            echo "Branch $branch exists, fetching commits..."
+            
+            # 获取该分支的提交，带超链接
+            if [[ -n "$GITHUB_BASE_URL" ]]; then
+              # 带超链接的版本
+              BRANCH_COMMITS=$(git log origin/$branch --oneline -$COMMIT_COUNT --pretty=format:"  - %s ([%h]($GITHUB_BASE_URL/commit/%H))" 2>/dev/null || echo "  - 无提交记录")
+            else
+              # 无链接的备用版本
+              BRANCH_COMMITS=$(git log origin/$branch --oneline -$COMMIT_COUNT --pretty=format:"  - %s (%h)" 2>/dev/null || echo "  - 无提交记录")
+            fi
+            
+            if [[ -n "$BRANCH_COMMITS" ]]; then
+              # 构建分支提交信息
+              BRANCH_SECTION="#### 📋 \`${branch}\` 分支最新提交"$'\n'"${BRANCH_COMMITS}"$'\n'
+              COMMITS_SECTION="${COMMITS_SECTION}${BRANCH_SECTION}"
+            else
+              # 无提交记录
+              BRANCH_SECTION="#### 📋 \`${branch}\` 分支最新提交"$'\n'"  - 无提交记录"$'\n'
+              COMMITS_SECTION="${COMMITS_SECTION}${BRANCH_SECTION}"
+            fi
+          else
+            echo "Branch $branch not found, skipping..."
+            # 分支不存在
+            BRANCH_SECTION="#### 📋 \`${branch}\` 分支最新提交"$'\n'"  - 分支不存在"$'\n'
+            COMMITS_SECTION="${COMMITS_SECTION}${BRANCH_SECTION}"
+          fi
+        done
+
+        # 如果没有获取到任何提交信息，使用默认信息
+        if [[ -z "$COMMITS_SECTION" ]]; then
+          COMMITS_SECTION="#### 📋 当前分支最新提交"$'\n'"  - 构建和发布应用程序 ($CURRENT_COMMIT_SHORT)"
+        fi
+
+        echo "Found commits from private repo branches:"
+        echo "$COMMITS_SECTION"
+
+        # 返回根目录
+        cd ..
+
+        # 获取触发仓库的提交信息
+        TRIGGER_INFO_SECTION=""
+        if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
+          # 来自 repository dispatch 的构建
+          TRIGGER_INFO_SECTION="
+        ### 🔔 触发信息
+        - **触发仓库**: \`${{ github.event.client_payload.source_repository }}\`
+        - **触发分支**: \`${{ github.event.client_payload.source_branch }}\`
+        - **触发提交**: \`${{ github.event.client_payload.source_commit }}\`
+        - **触发者**: \`${{ github.event.client_payload.pusher }}\`
+        - **提交消息**: ${{ github.event.client_payload.commit_message }}"
+        else
+          # 普通的 push 或 workflow_dispatch
+          TRIGGER_INFO_SECTION="
+        ### 🔔 构建触发信息
+        - **触发仓库**: \`${{ github.repository }}\`
+        - **触发分支**: \`${{ github.ref_name }}\`
+        - **触发提交**: \`${TRIGGER_COMMIT}\`
+        - **触发事件**: \`${{ github.event_name }}\`"
+          
+          # 如果是 push 事件，添加提交信息
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            TRIGGER_INFO_SECTION="${TRIGGER_INFO_SECTION}
+        - **提交消息**: \`${{ github.event.head_commit.message }}\`
+        - **提交者**: \`${{ github.event.head_commit.author.name }}\`"
+          fi
+        fi
+
+        # 生成变更日志
+        CHANGELOG="## 🎉 版本 ${{ inputs.version }}
+
+        ### 📅 发布信息
+        - **发布时间**: $(date -u +'%Y-%m-%d %H:%M:%S UTC')
+        - **私有仓库提交**: \`${CURRENT_COMMIT}\`
+        - **私有仓库分支**: \`${CURRENT_BRANCH}\`
+        ${TRIGGER_INFO_SECTION}
+
+        ### 📝 私有仓库最新提交
+        ${COMMITS_SECTION}
+
+        ### 📦 下载说明
+        - **文件格式**: 所有构建产物都经过密码加密的 7z 压缩包保护
+        - **解压密码**: 请联系管理员获取解压密码
+        - **macOS**: 下载 \`app-*-darwin-x64.7z\`，解压后添加执行权限: \`chmod +x app-*-darwin-x64 && ./app-*-darwin-x64\`
+        - **Linux**: 下载 \`app-*-linux-x64.7z\`，解压后添加执行权限: \`chmod +x app-*-linux-x64 && ./app-*-linux-x64\`
+
+        ### 🔓 解压说明
+        1. 下载对应平台的 .7z 文件
+        2. 使用 7-Zip 或其他支持 7z 格式的解压工具
+        3. 输入解压密码（请联系管理员）
+        4. 解压后按平台说明运行
+
+        ### 🔧 技术栈
+        - **运行时**: Bun
+        - **框架**: ElysiaJS
+        - **数据库**: Drizzle ORM + PostgreSQL
+        - **架构**: DDD + CQRS
+
+        ### ⚠️ macOS 用户注意
+        1. 下载可执行文件
+        2. 打开终端，进入下载目录
+        3. 执行 \`chmod +x app-*-darwin-x64 && ./app-*-darwin-x64\`
+        4. 如果仍提示安全问题，请在系统偏好设置 → 安全性与隐私 → 通用中点击\"仍要打开\"
+        5. 或者运行: \`xattr -d com.apple.quarantine ./app-*-darwin-x64\` 然后再执行"
+
+        # 保存到环境变量（处理多行）
+        echo "changelog<<EOF" >> $GITHUB_OUTPUT
+        echo "$CHANGELOG" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT

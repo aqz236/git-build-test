@@ -1,0 +1,116 @@
+name: 🚀 Create Release
+
+# 📊 配置参数
+env:
+  CHANGELOG_COMMIT_COUNT: 10 # 每个分支显示的提交数量
+  CHANGELOG_BRANCHES: "dev,main" # 要显示的分支列表（逗号分隔）
+
+on:
+  workflow_run:
+    workflows: ["🔨 Build Application"]
+    types: [completed]
+    branches: [main, dev]
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  release:
+    name: 🚀 Create Release
+    runs-on: ubuntu-latest
+    environment: elysiajs-rapid
+    if: |
+      (github.event.workflow_run.conclusion == 'success' && 
+       (github.event.workflow_run.head_branch == 'main' || 
+        github.event.workflow_run.head_branch == 'dev')) ||
+      startsWith(github.ref, 'refs/tags/') ||
+      github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 📥 Clone private repository
+        uses: ./.github/actions/clone-private-repo
+        with:
+          repository-url: ${{ secrets.REPOSITORY_URL }}
+          github-token: ${{ secrets.SELF_GITHUB_SECRETS }}
+
+      - name: 🏷️ Generate version
+        id: version
+        uses: ./.github/actions/generate-version
+
+      - name: 📋 Generate changelog
+        id: changelog
+        uses: ./.github/actions/generate-changelog
+        with:
+          version: ${{ steps.version.outputs.version }}
+          commit-count: ${{ env.CHANGELOG_COMMIT_COUNT }}
+          branches: ${{ env.CHANGELOG_BRANCHES }}
+
+      - name: 📤 Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+
+      - name: 🔍 Debug artifacts structure
+        run: |
+          echo "=== Artifacts directory structure ==="
+          find ./artifacts -type f -ls
+          echo "=== Looking for app-* files ==="
+          find ./artifacts -name "app-*" -type f
+          echo "=== Looking for .7z files ==="
+          find ./artifacts -name "*.7z" -type f
+          echo "=== All files in artifacts ==="
+          ls -la ./artifacts/
+
+      - name: 📁 Prepare release assets
+        run: |
+          mkdir -p release-assets
+          # 递归查找所有.7z文件（加密压缩包）
+          find ./artifacts -name "*.7z" -type f | while read file; do
+            echo "Found and copying: $file"
+            # 复制文件，保持原文件名（去掉路径）
+            cp "$file" "release-assets/$(basename "$file")"
+          done
+
+          echo "=== Final release assets ==="
+          ls -la release-assets/
+
+          # 确保至少有文件存在
+          if [ ! "$(ls -A release-assets/)" ]; then
+            echo "ERROR: No release assets found!"
+            exit 1
+          fi
+
+      - name: 🏷️ Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: "Release ${{ steps.version.outputs.version }}"
+          body: ${{ steps.changelog.outputs.changelog }}
+          prerelease: ${{ steps.version.outputs.is-prerelease }}
+          files: release-assets/*
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 📢 Release Summary
+        run: |
+          echo "## 🎉 Release Created Successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version**: ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Prerelease**: ${{ steps.version.outputs.is-prerelease }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Available Downloads:" >> $GITHUB_STEP_SUMMARY
+          echo "- macOS: \`app-${{ steps.version.outputs.version }}-darwin-x64.7z\` (加密压缩包)" >> $GITHUB_STEP_SUMMARY
+          echo "- Linux: \`app-${{ steps.version.outputs.version }}-linux-x64.7z\` (加密压缩包)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔒 **注意**: 所有文件都经过密码保护，请联系管理员获取解压密码" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔗 [View Release](https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.version }})" >> $GITHUB_STEP_SUMMARY

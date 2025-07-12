@@ -1,0 +1,94 @@
+name: '🏗️ Build Application'
+description: 'Build the application with Bun and prepare executable'
+
+inputs:
+  app-directory:
+    description: 'Directory containing the application source'
+    required: false
+    default: 'app'
+  executable-name:
+    description: 'Name of the output executable'
+    required: false
+    default: 'app'
+  platform:
+    description: 'Target platform (macos-latest, ubuntu-latest)'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: 🟢 Setup Bun
+      uses: oven-sh/setup-bun@v1
+      with:
+        bun-version: latest
+
+    - name: 📦 Install dependencies
+      shell: bash
+      run: |
+        cd ${{ inputs.app-directory }}/
+        bun install --frozen-lockfile
+
+    - name: 🔍 Lint code
+      shell: bash
+      run: |
+        cd ${{ inputs.app-directory }}/
+        bun run lint
+
+    - name: 🏗️ Build application
+      shell: bash
+      run: |
+        cd ${{ inputs.app-directory }}/
+        mkdir -p dist
+        bun build src/index.ts --compile --outfile dist/${{ inputs.executable-name }}
+
+    - name: 🍎 macOS post-build processing
+      if: inputs.platform == 'macos-latest'
+      shell: bash
+      run: |
+        cd ${{ inputs.app-directory }}/
+        # 移除所有扩展属性，包括隔离属性
+        xattr -c dist/${{ inputs.executable-name }} 2>/dev/null || true
+        # 确保没有任何隔离标记
+        xattr -d com.apple.quarantine dist/${{ inputs.executable-name }} 2>/dev/null || true
+        # 移除所有可能的属性
+        xattr -cr dist/${{ inputs.executable-name }} 2>/dev/null || true
+
+        # 设置可执行权限
+        chmod +x dist/${{ inputs.executable-name }}
+
+        # Ad hoc 代码签名 - 这是关键步骤
+        echo "🔐 Performing ad hoc code signing..."
+        codesign --force --deep --sign - dist/${{ inputs.executable-name }}
+
+        # 验证签名
+        echo "✅ Verifying code signature..."
+        codesign --verify --verbose dist/${{ inputs.executable-name }}
+
+        # 显示签名信息
+        echo "📋 Code signature info:"
+        codesign --display --verbose dist/${{ inputs.executable-name }}
+
+        # 检查签名状态
+        echo "🔍 Checking signature status:"
+        codesign --test-requirement="=designated => anchor apple generic" dist/${{ inputs.executable-name }} || echo "Note: This is expected for ad hoc signatures"
+
+        # 验证Gatekeeper兼容性
+        echo "🚪 Testing Gatekeeper compatibility:"
+        spctl --assess --type execute dist/${{ inputs.executable-name }} || echo "Note: Ad hoc signatures are not Gatekeeper-approved but should work"
+
+        # 验证文件类型
+        file dist/${{ inputs.executable-name }}
+
+        # 最终验证没有扩展属性
+        echo "🔍 Final extended attributes check:"
+        xattr -l dist/${{ inputs.executable-name }} || echo "No extended attributes found (good!)"
+
+    - name: 🐧 Linux post-build processing
+      if: inputs.platform == 'ubuntu-latest'
+      shell: bash
+      run: |
+        cd ${{ inputs.app-directory }}/
+        # 确保可执行权限
+        chmod +x dist/${{ inputs.executable-name }}
+        # 验证文件
+        file dist/${{ inputs.executable-name }}

@@ -1,0 +1,89 @@
+name: 🔨 Build Application
+
+# 📊 配置参数
+env:
+  ARTIFACT_RETENTION_DAYS: 30
+
+on:
+  push:
+    branches: [dev, main]
+    tags: ["v*"]
+  workflow_dispatch:
+  repository_dispatch:
+    types: [build-trigger]
+  workflow_call:
+    outputs:
+      version:
+        description: "Generated version"
+        value: ${{ jobs.build.outputs.version }}
+      is-prerelease:
+        description: "Whether this is a prerelease"
+        value: ${{ jobs.build.outputs.is-prerelease }}
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build:
+    name: 🔨 Build for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    environment: elysiajs-rapid
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            artifact-name: linux-x64
+            executable: app
+          - os: macos-latest
+            artifact-name: darwin-x64
+            executable: app
+    
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      is-prerelease: ${{ steps.version.outputs.is-prerelease }}
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 📥 Clone private repository
+        uses: ./.github/actions/clone-private-repo
+        with:
+          repository-url: ${{ secrets.REPOSITORY_URL }}
+          github-token: ${{ secrets.SELF_GITHUB_SECRETS }}
+
+      - name: 🏷️ Generate version
+        id: version
+        uses: ./.github/actions/generate-version
+
+      - name: 🏗️ Build application
+        uses: ./.github/actions/build-app
+        with:
+          executable-name: ${{ matrix.executable }}
+          platform: ${{ matrix.os }}
+
+      - name: 📦 Package and encrypt
+        uses: ./.github/actions/package-encrypt
+        with:
+          version: ${{ steps.version.outputs.version }}
+          artifact-name: ${{ matrix.artifact-name }}
+          encryption-password: ${{ secrets.COMPRESSED_PASSWORD }}
+          platform: ${{ matrix.os }}
+          executable-name: ${{ matrix.executable }}
+
+      - name: 📊 Get build info
+        id: build-info
+        shell: bash
+        run: |
+          echo "build-date=$(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_OUTPUT
+          echo "commit-sha=${GITHUB_SHA}" >> $GITHUB_OUTPUT
+          echo "commit-short=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+
+      - name: 📤 Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-${{ matrix.artifact-name }}
+          path: app-${{ steps.version.outputs.version }}-${{ matrix.artifact-name }}.7z
+          retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}

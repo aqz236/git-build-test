@@ -1,0 +1,67 @@
+name: '🏷️ Generate Version'
+description: 'Generate version based on trigger type and repository commits'
+
+inputs:
+  app-directory:
+    description: 'Directory containing the private repository'
+    required: false
+    default: 'app'
+
+outputs:
+  version:
+    description: 'Generated version string'
+    value: ${{ steps.version.outputs.version }}
+  is-prerelease:
+    description: 'Whether this is a prerelease'
+    value: ${{ steps.version.outputs.is-prerelease }}
+  private-commit:
+    description: 'Private repository commit hash'
+    value: ${{ steps.version.outputs.private-commit }}
+  private-commit-short:
+    description: 'Private repository short commit hash'
+    value: ${{ steps.version.outputs.private-commit-short }}
+
+runs:
+  using: composite
+  steps:
+    - name: 🏷️ Get version
+      id: version
+      shell: bash
+      run: |
+        # 进入私有仓库目录获取信息
+        cd ${{ inputs.app-directory }}/
+        # 获取私有仓库的当前提交信息
+        PRIVATE_COMMIT=$(git rev-parse HEAD)
+        PRIVATE_COMMIT_SHORT=$(git rev-parse --short HEAD)
+
+        # 获取触发此次构建的仓库信息（当前Action运行的仓库）
+        TRIGGER_COMMIT="${{ github.sha }}"
+        TRIGGER_COMMIT_SHORT="${TRIGGER_COMMIT:0:7}"
+
+        # 检查是否来自 repository dispatch
+        if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
+          # 使用触发仓库的信息
+          SOURCE_COMMIT="${{ github.event.client_payload.source_commit }}"
+          SOURCE_COMMIT_SHORT="${SOURCE_COMMIT:0:7}"
+          VERSION="v$(date +'%Y.%m.%d')-trigger-${SOURCE_COMMIT_SHORT}"
+          IS_PRERELEASE=true
+          echo "Triggered by repository dispatch from ${{ github.event.client_payload.source_repository }}"
+          echo "Source commit: ${SOURCE_COMMIT}"
+        elif [[ $GITHUB_REF == refs/tags/* ]]; then
+          VERSION=${GITHUB_REF#refs/tags/}
+          IS_PRERELEASE=false
+        else
+          # 使用私有仓库的提交信息作为版本号
+          VERSION="v$(date +'%Y.%m.%d')-${PRIVATE_COMMIT_SHORT}"
+          IS_PRERELEASE=true
+        fi
+
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "is-prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+        echo "private-commit=$PRIVATE_COMMIT" >> $GITHUB_OUTPUT
+        echo "private-commit-short=$PRIVATE_COMMIT_SHORT" >> $GITHUB_OUTPUT
+        
+        echo "Version: $VERSION"
+        echo "Is prerelease: $IS_PRERELEASE"
+        echo "Private repo commit: $PRIVATE_COMMIT"
+        echo "Trigger repo commit: $TRIGGER_COMMIT"
