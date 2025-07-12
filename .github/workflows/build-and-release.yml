@@ -3,7 +3,7 @@ name: 🚀 Build and Release from Private Repository
 on:
   push:
     branches: [main, dev]
-    tags: ['v*']
+    tags: ["v*"]
   workflow_dispatch:
   repository_dispatch:
     types: [build-trigger]
@@ -162,11 +162,38 @@ jobs:
           ls -la app-${{ steps.version.outputs.version }}-${{ matrix.artifact-name }}
           file app-${{ steps.version.outputs.version }}-${{ matrix.artifact-name }}
 
+      - name: 🔒 Compress and encrypt build artifact
+        shell: bash
+        run: |
+          # 安装 7z（如果需要）
+          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+            sudo apt-get update && sudo apt-get install -y p7zip-full
+          fi
+
+          # macOS 已经预装了 7z
+
+          # 创建加密的 7z 压缩包
+          FILENAME="app-${{ steps.version.outputs.version }}-${{ matrix.artifact-name }}"
+          ARCHIVE_NAME="${FILENAME}.7z"
+
+          echo "🔒 Creating encrypted archive: ${ARCHIVE_NAME}"
+          7z a -p"${{ secrets.COMPRESSED_PASSWORD }}" -mhe=on "${ARCHIVE_NAME}" "${FILENAME}"
+
+          # 验证压缩包
+          echo "📋 Archive info:"
+          ls -la "${ARCHIVE_NAME}"
+          7z l "${ARCHIVE_NAME}"
+
+          # 删除原始文件（只保留加密压缩包）
+          rm "${FILENAME}"
+
+          echo "✅ Encrypted archive created successfully: ${ARCHIVE_NAME}"
+
       - name: 📤 Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-${{ matrix.artifact-name }}
-          path: app-${{ steps.version.outputs.version }}-${{ matrix.artifact-name }}
+          path: app-${{ steps.version.outputs.version }}-${{ matrix.artifact-name }}.7z
           retention-days: 30
 
   release:
@@ -283,8 +310,16 @@ jobs:
           ${COMMITS}
 
           ### 📦 下载说明
-          - **macOS**: 下载 \`app-*-darwin-x64\`，添加执行权限后运行: \`chmod +x app-*-darwin-x64 && ./app-*-darwin-x64\`
-          - **Linux**: 下载 \`app-*-linux-x64\`，添加执行权限后运行: \`chmod +x app-*-linux-x64 && ./app-*-linux-x64\`
+          - **文件格式**: 所有构建产物都经过密码加密的 7z 压缩包保护
+          - **解压密码**: 请联系管理员获取解压密码
+          - **macOS**: 下载 \`app-*-darwin-x64.7z\`，解压后添加执行权限: \`chmod +x app-*-darwin-x64 && ./app-*-darwin-x64\`
+          - **Linux**: 下载 \`app-*-linux-x64.7z\`，解压后添加执行权限: \`chmod +x app-*-linux-x64 && ./app-*-linux-x64\`
+
+          ### 🔓 解压说明
+          1. 下载对应平台的 .7z 文件
+          2. 使用 7-Zip 或其他支持 7z 格式的解压工具
+          3. 输入解压密码（请联系管理员）
+          4. 解压后按平台说明运行
 
           ### 🔧 技术栈
           - **运行时**: Bun
@@ -315,14 +350,16 @@ jobs:
           find ./artifacts -type f -ls
           echo "=== Looking for app-* files ==="
           find ./artifacts -name "app-*" -type f
+          echo "=== Looking for .7z files ==="
+          find ./artifacts -name "*.7z" -type f
           echo "=== All files in artifacts ==="
           ls -la ./artifacts/
 
       - name: 📁 Prepare release assets
         run: |
           mkdir -p release-assets
-          # 递归查找所有app-*文件
-          find ./artifacts -name "app-*" -type f | while read file; do
+          # 递归查找所有.7z文件（加密压缩包）
+          find ./artifacts -name "*.7z" -type f | while read file; do
             echo "Found and copying: $file"
             # 复制文件，保持原文件名（去掉路径）
             cp "$file" "release-assets/$(basename "$file")"
@@ -341,7 +378,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.version.outputs.version }}
-          name: 'Release ${{ steps.version.outputs.version }}'
+          name: "Release ${{ steps.version.outputs.version }}"
           body: ${{ steps.changelog.outputs.changelog }}
           prerelease: ${{ steps.version.outputs.is-prerelease }}
           files: release-assets/*
@@ -357,7 +394,9 @@ jobs:
           echo "**Prerelease**: ${{ steps.version.outputs.is-prerelease }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📦 Available Downloads:" >> $GITHUB_STEP_SUMMARY
-          echo "- macOS: \`app-${{ steps.version.outputs.version }}-darwin-x64\`" >> $GITHUB_STEP_SUMMARY
-          echo "- Linux: \`app-${{ steps.version.outputs.version }}-linux-x64\`" >> $GITHUB_STEP_SUMMARY
+          echo "- macOS: \`app-${{ steps.version.outputs.version }}-darwin-x64.7z\` (加密压缩包)" >> $GITHUB_STEP_SUMMARY
+          echo "- Linux: \`app-${{ steps.version.outputs.version }}-linux-x64.7z\` (加密压缩包)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔒 **注意**: 所有文件都经过密码保护，请联系管理员获取解压密码" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "🔗 [View Release](https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.version }})" >> $GITHUB_STEP_SUMMARY
