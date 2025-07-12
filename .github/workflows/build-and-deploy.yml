@@ -2,8 +2,8 @@ name: 🚀 NextJS Static Deploy
 
 # 📊 配置参数
 env:
-  NODE_VERSION: '20'
-  BUN_VERSION: 'latest'
+  NODE_VERSION: "20"
+  BUN_VERSION: "latest"
 
 on:
   push:
@@ -30,6 +30,7 @@ concurrency:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    environment: elysiajs-rapid
     permissions:
       contents: read
       pages: write
@@ -65,7 +66,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
 
       # 设置 Bun 环境
       - name: 🥖 Setup Bun
@@ -84,7 +85,7 @@ jobs:
         run: |
           echo "Building NextJS application..."
           bun run build
-          
+
       # 导出静态文件
       - name: 📤 Export static files
         working-directory: ./app
