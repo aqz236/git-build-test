@@ -91,6 +91,19 @@ jobs:
           version: ${{ steps.version.outputs.version }}
           changelog: ${{ steps.changelog.outputs.changelog }}
 
+      # 准备 GitHub Pages 部署文件
+      - name: 📁 Prepare Pages deployment
+        run: |
+          # 创建部署目录
+          mkdir -p _site
+
+          # 复制 pages 目录的内容到 _site（作为根目录）
+          cp -r pages/* _site/
+
+          # 确保所有文件都存在
+          ls -la _site/
+          echo "Pages deployment prepared"
+
       # 设置 GitHub Pages
       - name: 🔧 Setup Pages
         uses: actions/configure-pages@v4
@@ -99,7 +112,7 @@ jobs:
       - name: 📤 Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: pages/
+          path: _site
 
       # 部署到 GitHub Pages
       - name: 🚀 Deploy to GitHub Pages
