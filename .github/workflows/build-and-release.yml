@@ -3,11 +3,11 @@ name: 🚀 Build and Release from Private Repository
 # 📊 配置参数
 env:
   CHANGELOG_COMMIT_COUNT: 10 # 每个分支显示的提交数量
-  CHANGELOG_BRANCHES: "main,dev" # 要显示的分支列表（逗号分隔）
+  CHANGELOG_BRANCHES: "dev,main" # 要显示的分支列表（逗号分隔）
 
 on:
   push:
-    branches: [main, dev]
+    branches: [dev, main]
     tags: ["v*"]
   workflow_dispatch:
   repository_dispatch:
@@ -314,7 +314,7 @@ jobs:
           else
             GITHUB_BASE_URL=""
           fi
-          
+
           echo "Repository path: $REPO_PATH"
           echo "GitHub base URL: $GITHUB_BASE_URL"
 
