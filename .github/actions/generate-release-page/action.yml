@@ -87,20 +87,22 @@ runs:
         # 复制并处理模板文件
         cp pages/release-template.html "$RELEASE_DIR/index.html"
 
-        # 使用 Perl 进行安全的文本替换，避免 sed 的特殊字符问题
-        perl -pi -e "s/\\{\\{VERSION\\}\\}/\Q${{ inputs.version }}\E/g" "$RELEASE_DIR/index.html"
-        perl -pi -e "s/\\{\\{CREATED_AT\\}\\}/\Q$CREATED_AT\E/g" "$RELEASE_DIR/index.html"
-        perl -pi -e "s/\\{\\{COMMIT_HASH\\}\\}/\Q$CURRENT_COMMIT\E/g" "$RELEASE_DIR/index.html"
-        perl -pi -e "s/\\{\\{PRIVATE_BRANCH\\}\\}/\Q$CURRENT_BRANCH\E/g" "$RELEASE_DIR/index.html"
-        perl -pi -e "s/\\{\\{TRIGGER_EVENT\\}\\}/\Q$TRIGGER_EVENT\E/g" "$RELEASE_DIR/index.html"
-        perl -pi -e "s/\\{\\{TRIGGER_REPO\\}\\}/\Q$TRIGGER_REPO\E/g" "$RELEASE_DIR/index.html"
-        perl -pi -e "s/\\{\\{TRIGGER_BRANCH\\}\\}/\Q$TRIGGER_BRANCH\E/g" "$RELEASE_DIR/index.html"
-        perl -pi -e "s/\\{\\{TRIGGER_COMMIT\\}\\}/\Q$TRIGGER_COMMIT\E/g" "$RELEASE_DIR/index.html"
-        perl -pi -e "s/\\{\\{TRIGGER_AUTHOR\\}\\}/\Q$TRIGGER_AUTHOR\E/g" "$RELEASE_DIR/index.html"
-        perl -pi -e "s/\\{\\{COMMIT_MESSAGE\\}\\}/\Q$COMMIT_MESSAGE\E/g" "$RELEASE_DIR/index.html"
-        perl -pi -e "s/\\{\\{GITHUB_BASE_URL\\}\\}/\Q$GITHUB_BASE_URL\E/g" "$RELEASE_DIR/index.html"
-        perl -pi -e "s/\\{\\{REPO_PATH\\}\\}/\Q$REPO_PATH\E/g" "$RELEASE_DIR/index.html"
-        perl -pi -e "s/\\{\\{CHANGELOG\\}\\}/查看完整 changelog/g" "$RELEASE_DIR/index.html"
+        # 设置环境变量供 Python 脚本使用
+        export REPLACE_VERSION="${{ inputs.version }}"
+        export REPLACE_CREATED_AT="$CREATED_AT"
+        export REPLACE_COMMIT_HASH="$CURRENT_COMMIT"
+        export REPLACE_PRIVATE_BRANCH="$CURRENT_BRANCH"
+        export REPLACE_TRIGGER_EVENT="$TRIGGER_EVENT"
+        export REPLACE_TRIGGER_REPO="$TRIGGER_REPO"
+        export REPLACE_TRIGGER_BRANCH="$TRIGGER_BRANCH"
+        export REPLACE_TRIGGER_COMMIT="$TRIGGER_COMMIT"
+        export REPLACE_TRIGGER_AUTHOR="$TRIGGER_AUTHOR"
+        export REPLACE_COMMIT_MESSAGE="$COMMIT_MESSAGE"
+        export REPLACE_GITHUB_BASE_URL="$GITHUB_BASE_URL"
+        export REPLACE_REPO_PATH="$REPO_PATH"
+
+        # 使用外部 Python 脚本处理模板替换
+        python3 ./.github/actions/generate-release-page/process_template.py "$RELEASE_DIR"
 
         # 更新 releases.json
         echo "Updating releases.json..."
