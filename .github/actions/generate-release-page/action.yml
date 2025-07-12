@@ -73,16 +73,18 @@ runs:
         # 转义特殊字符以避免 sed 错误
         COMMIT_MESSAGE=$(echo "$COMMIT_MESSAGE" | sed 's/[\/&]/\\&/g' | tr '\n' ' ' | tr '\r' ' ')
 
-        # 创建发布目录 - 使用版本号而不是commit hash确保每次构建的唯一性
-        # 清理版本号中的特殊字符，用于文件夹名
-        VERSION_SAFE=$(echo "${{ inputs.version }}" | sed 's/[^a-zA-Z0-9.-]/_/g')
-        RELEASE_DIR="pages/${VERSION_SAFE}"
+        # 创建发布目录 - 使用release的唯一hash确保每次构建的唯一性
+        # 使用触发仓库的commit hash作为页面路径，这样可以通过API准确获取对应的release数据
+        RELEASE_HASH="${{ github.sha }}"
+        RELEASE_HASH_SHORT="${RELEASE_HASH:0:7}"
+        RELEASE_DIR="pages/${RELEASE_HASH}"
         mkdir -p "$RELEASE_DIR"
 
         echo "Creating release page in: $RELEASE_DIR"
         echo "Version: ${{ inputs.version }}"
-        echo "Version (safe): $VERSION_SAFE"
-        echo "Commit: $CURRENT_COMMIT"
+        echo "Release Hash: $RELEASE_HASH"
+        echo "Release Hash (short): $RELEASE_HASH_SHORT"
+        echo "Private Commit: $CURRENT_COMMIT"
 
         # 获取当前时间
         CREATED_AT=$(date -u +'%Y-%m-%dT%H:%M:%S.%3NZ')
@@ -90,11 +92,11 @@ runs:
         # 获取关联的 Release 下载文件信息
         DOWNLOAD_FILES="[]"
 
-        # 查找与当前版本匹配的 Release
+        # 通过release hash获取对应的release数据
         if [[ -n "$GITHUB_TOKEN" ]]; then
-          echo "Fetching release assets for version: ${{ inputs.version }}"
+          echo "Fetching release assets for version: ${{ inputs.version }} (hash: $RELEASE_HASH_SHORT)"
           
-          # 尝试多种版本格式
+          # 首先尝试通过版本号获取release
           VERSION_VARIANTS=("${{ inputs.version }}" "v${{ inputs.version }}")
           
           for VERSION_TAG in "${VERSION_VARIANTS[@]}"; do
@@ -110,34 +112,59 @@ runs:
                 name: .name,
                 size: .size,
                 browser_download_url: .browser_download_url,
-                updated_at: .updated_at
+                updated_at: .updated_at,
+                download_count: .download_count
               })')
-              echo "Found $(echo "$DOWNLOAD_FILES" | jq 'length') download files for tag: $VERSION_TAG"
+              echo "✅ Found $(echo "$DOWNLOAD_FILES" | jq 'length') download files for tag: $VERSION_TAG"
               break
             else
-              echo "No release found for tag: $VERSION_TAG"
+              echo "❌ No release found for tag: $VERSION_TAG"
             fi
           done
           
+          # 如果通过版本号没找到，尝试通过release hash查找
           if [[ "$DOWNLOAD_FILES" == "[]" ]]; then
-            echo "No assets found in any version variant, checking first release..."
-            FIRST_RELEASE=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            echo "🔍 Searching releases by target commit hash: $RELEASE_HASH"
+            ALL_RELEASES=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
               -H "Accept: application/vnd.github.v3+json" \
-              "https://api.github.com/repos/${{ github.repository }}/releases?per_page=1" 2>/dev/null)
+              "https://api.github.com/repos/${{ github.repository }}/releases?per_page=50" 2>/dev/null)
             
-            if [[ $? -eq 0 ]] && echo "$FIRST_RELEASE" | jq -e '.[0].assets' >/dev/null 2>&1; then
-              FIRST_TAG=$(echo "$FIRST_RELEASE" | jq -r '.[0].tag_name')
-              echo "Using assets from first release: $FIRST_TAG"
-              DOWNLOAD_FILES=$(echo "$FIRST_RELEASE" | jq -c '.[0].assets | map({
-                name: .name,
-                size: .size,
-                browser_download_url: .browser_download_url,
-                updated_at: .updated_at
-              })')
+            if [[ $? -eq 0 ]] && echo "$ALL_RELEASES" | jq -e '.[0]' >/dev/null 2>&1; then
+              # 查找target_commitish匹配当前hash的release
+              MATCHING_RELEASE=$(echo "$ALL_RELEASES" | jq --arg hash "$RELEASE_HASH" '.[] | select(.target_commitish == $hash or .target_commitish == $hash[0:7])')
+              
+              if [[ -n "$MATCHING_RELEASE" ]]; then
+                FOUND_TAG=$(echo "$MATCHING_RELEASE" | jq -r '.tag_name')
+                echo "🎯 Found matching release by commit hash: $FOUND_TAG"
+                DOWNLOAD_FILES=$(echo "$MATCHING_RELEASE" | jq -c '.assets | map({
+                  name: .name,
+                  size: .size,
+                  browser_download_url: .browser_download_url,
+                  updated_at: .updated_at,
+                  download_count: .download_count
+                })')
+              else
+                echo "⚠️ No release found matching commit hash: $RELEASE_HASH"
+                # 如果还是找不到，使用最新的release作为fallback
+                LATEST_RELEASE=$(echo "$ALL_RELEASES" | jq '.[0]')
+                if [[ -n "$LATEST_RELEASE" ]] && [[ "$LATEST_RELEASE" != "null" ]]; then
+                  LATEST_TAG=$(echo "$LATEST_RELEASE" | jq -r '.tag_name')
+                  echo "📦 Using latest release as fallback: $LATEST_TAG"
+                  DOWNLOAD_FILES=$(echo "$LATEST_RELEASE" | jq -c '.assets | map({
+                    name: .name,
+                    size: .size,
+                    browser_download_url: .browser_download_url,
+                    updated_at: .updated_at,
+                    download_count: .download_count
+                  })')
+                fi
+              fi
             fi
           fi
+          
+          echo "📊 Final download files count: $(echo "$DOWNLOAD_FILES" | jq 'length')"
         else
-          echo "Warning: GITHUB_TOKEN not available, cannot fetch release assets"
+          echo "⚠️ Warning: GITHUB_TOKEN not available, cannot fetch release assets"
         fi
 
         # 复制并处理模板文件
@@ -227,12 +254,12 @@ runs:
           mv pages/releases.json.tmp pages/releases.json
         fi
 
-        # 输出页面 URL - 使用版本号作为路径
+        # 输出页面 URL - 使用release hash作为路径
         REPO_NAME=$(basename "${{ github.repository }}")
         if [[ -n "${{ github.repository }}" ]]; then
-          PAGE_URL="https://${{ github.repository_owner }}.github.io/${REPO_NAME}/${VERSION_SAFE}/"
+          PAGE_URL="https://${{ github.repository_owner }}.github.io/${REPO_NAME}/${RELEASE_HASH}/"
         else
-          PAGE_URL="/${VERSION_SAFE}/"
+          PAGE_URL="/${RELEASE_HASH}/"
         fi
 
         echo "page-url=$PAGE_URL" >> $GITHUB_OUTPUT
