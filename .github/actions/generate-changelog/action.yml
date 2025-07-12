@@ -1,26 +1,26 @@
-name: '📋 Generate Changelog'
-description: 'Generate changelog from private repository commits'
+name: "📋 Generate Changelog"
+description: "Generate changelog from private repository commits"
 
 inputs:
   app-directory:
-    description: 'Directory containing the private repository'
+    description: "Directory containing the private repository"
     required: false
-    default: 'app'
+    default: "app"
   version:
-    description: 'Version string for the changelog'
+    description: "Version string for the changelog"
     required: true
   commit-count:
-    description: 'Number of commits to show per branch'
+    description: "Number of commits to show per branch"
     required: false
-    default: '10'
+    default: "10"
   branches:
-    description: 'Comma-separated list of branches to include'
+    description: "Comma-separated list of branches to include"
     required: false
-    default: 'dev,main'
+    default: "dev,main"
 
 outputs:
   changelog:
-    description: 'Generated changelog content'
+    description: "Generated changelog content"
     value: ${{ steps.changelog.outputs.changelog }}
 
 runs:

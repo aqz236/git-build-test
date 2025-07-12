@@ -1,21 +1,21 @@
-name: '🔑 Clone Private Repository'
-description: 'Clone the private repository and fetch all branches and tags'
+name: "🔑 Clone Private Repository"
+description: "Clone the private repository and fetch all branches and tags"
 
 inputs:
   repository-url:
-    description: 'Repository URL (owner/repo format or full URL)'
+    description: "Repository URL (owner/repo format or full URL)"
     required: true
   github-token:
-    description: 'GitHub token with access to private repository'
+    description: "GitHub token with access to private repository"
     required: true
   target-directory:
-    description: 'Target directory to clone into'
+    description: "Target directory to clone into"
     required: false
-    default: 'app'
+    default: "app"
 
 outputs:
   repo-path:
-    description: 'The repository path in owner/repo format'
+    description: "The repository path in owner/repo format"
     value: ${{ steps.clone.outputs.repo-path }}
 
 runs:

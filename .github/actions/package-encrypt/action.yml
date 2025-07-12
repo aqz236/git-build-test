@@ -1,31 +1,31 @@
-name: '📦 Package and Encrypt'
-description: 'Package the built executable and encrypt with 7z'
+name: "📦 Package and Encrypt"
+description: "Package the built executable and encrypt with 7z"
 
 inputs:
   app-directory:
-    description: 'Directory containing the built application'
+    description: "Directory containing the built application"
     required: false
-    default: 'app'
+    default: "app"
   executable-name:
-    description: 'Name of the executable file'
+    description: "Name of the executable file"
     required: false
-    default: 'app'
+    default: "app"
   version:
-    description: 'Version string for the package'
+    description: "Version string for the package"
     required: true
   artifact-name:
-    description: 'Artifact name suffix (e.g., darwin-x64, linux-x64)'
+    description: "Artifact name suffix (e.g., darwin-x64, linux-x64)"
     required: true
   encryption-password:
-    description: 'Password for 7z encryption'
+    description: "Password for 7z encryption"
     required: true
   platform:
-    description: 'Target platform (macos-latest, ubuntu-latest)'
+    description: "Target platform (macos-latest, ubuntu-latest)"
     required: true
 
 outputs:
   package-name:
-    description: 'Name of the created package'
+    description: "Name of the created package"
     value: ${{ steps.package.outputs.package-name }}
 
 runs:
@@ -38,7 +38,7 @@ runs:
         cd ${{ inputs.app-directory }}/
         # 重命名可执行文件，包含平台信息
         FINAL_NAME="app-${{ inputs.version }}-${{ inputs.artifact-name }}"
-        
+
         if [[ "${{ inputs.platform }}" == "macos-latest" ]]; then
           # macOS: 在重命名前再次确保文件干净
           xattr -c dist/${{ inputs.executable-name }} 2>/dev/null || true
@@ -52,7 +52,7 @@ runs:
         # 验证文件
         ls -la "${FINAL_NAME}"
         file "${FINAL_NAME}"
-        
+
         echo "package-name=${FINAL_NAME}" >> $GITHUB_OUTPUT
 
     - name: 🔒 Compress and encrypt build artifact

@@ -1,17 +1,17 @@
-name: '🏗️ Build Application'
-description: 'Build the application with Bun and prepare executable'
+name: "🏗️ Build Application"
+description: "Build the application with Bun and prepare executable"
 
 inputs:
   app-directory:
-    description: 'Directory containing the application source'
+    description: "Directory containing the application source"
     required: false
-    default: 'app'
+    default: "app"
   executable-name:
-    description: 'Name of the output executable'
+    description: "Name of the output executable"
     required: false
-    default: 'app'
+    default: "app"
   platform:
-    description: 'Target platform (macos-latest, ubuntu-latest)'
+    description: "Target platform (macos-latest, ubuntu-latest)"
     required: true
 
 runs:

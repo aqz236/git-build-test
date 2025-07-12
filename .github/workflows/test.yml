@@ -47,9 +47,12 @@ jobs:
       - name: 🧪 Run tests
         run: |
           cd app/
-          # 如果有测试命令的话
-          if grep -q '"test"' package.json; then
+          # 检查是否有测试命令
+          if grep -q '"test"' package.json && ! grep -q 'echo.*Error.*no test specified' package.json; then
+            echo "Found test script, running tests..."
             bun run test
           else
-            echo "No test script found in package.json"
+            echo "⚠️ No test script found in package.json or it's a placeholder"
+            echo "Skipping tests - this is not an error"
+            echo "To add tests, define a 'test' script in your package.json"
           fi

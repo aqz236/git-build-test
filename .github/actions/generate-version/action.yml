@@ -1,24 +1,24 @@
-name: '🏷️ Generate Version'
-description: 'Generate version based on trigger type and repository commits'
+name: "🏷️ Generate Version"
+description: "Generate version based on trigger type and repository commits"
 
 inputs:
   app-directory:
-    description: 'Directory containing the private repository'
+    description: "Directory containing the private repository"
     required: false
-    default: 'app'
+    default: "app"
 
 outputs:
   version:
-    description: 'Generated version string'
+    description: "Generated version string"
     value: ${{ steps.version.outputs.version }}
   is-prerelease:
-    description: 'Whether this is a prerelease'
+    description: "Whether this is a prerelease"
     value: ${{ steps.version.outputs.is-prerelease }}
   private-commit:
-    description: 'Private repository commit hash'
+    description: "Private repository commit hash"
     value: ${{ steps.version.outputs.private-commit }}
   private-commit-short:
-    description: 'Private repository short commit hash'
+    description: "Private repository short commit hash"
     value: ${{ steps.version.outputs.private-commit-short }}
 
 runs:
@@ -60,7 +60,7 @@ runs:
         echo "is-prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
         echo "private-commit=$PRIVATE_COMMIT" >> $GITHUB_OUTPUT
         echo "private-commit-short=$PRIVATE_COMMIT_SHORT" >> $GITHUB_OUTPUT
-        
+
         echo "Version: $VERSION"
         echo "Is prerelease: $IS_PRERELEASE"
         echo "Private repo commit: $PRIVATE_COMMIT"

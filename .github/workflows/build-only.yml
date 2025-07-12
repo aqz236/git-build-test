@@ -1,24 +1,15 @@
-name: 🔨 Build Application
-
-# 📊 配置参数
-env:
-  ARTIFACT_RETENTION_DAYS: 30
+name: 🔨 Build Only
 
 on:
-  push:
-    branches: [dev, main]
-    tags: ["v*"]
+  pull_request:
+    branches: [main, dev]
   workflow_dispatch:
-  repository_dispatch:
-    types: [build-trigger]
-  workflow_call:
-    outputs:
-      version:
-        description: "Generated version"
-        value: ${{ jobs.build.outputs.version }}
-      is-prerelease:
-        description: "Whether this is a prerelease"
-        value: ${{ jobs.build.outputs.is-prerelease }}
+    inputs:
+      skip_release:
+        description: "Skip release creation"
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: read
@@ -39,10 +30,6 @@ jobs:
           - os: macos-latest
             artifact-name: darwin-x64
             executable: app
-
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-      is-prerelease: ${{ steps.version.outputs.is-prerelease }}
 
     steps:
       - name: 📥 Checkout repository
@@ -73,17 +60,9 @@ jobs:
           platform: ${{ matrix.os }}
           executable-name: ${{ matrix.executable }}
 
-      - name: 📊 Get build info
-        id: build-info
-        shell: bash
-        run: |
-          echo "build-date=$(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_OUTPUT
-          echo "commit-sha=${GITHUB_SHA}" >> $GITHUB_OUTPUT
-          echo "commit-short=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
-
       - name: 📤 Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-${{ matrix.artifact-name }}
           path: app-${{ steps.version.outputs.version }}-${{ matrix.artifact-name }}.7z
-          retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
+          retention-days: 7

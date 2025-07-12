@@ -57,27 +57,51 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: ./artifacts
+        continue-on-error: true
 
-      - name: 🔍 Debug artifacts structure
+      - name: 🔍 Check artifacts availability
+        id: check-artifacts
         run: |
-          echo "=== Artifacts directory structure ==="
-          find ./artifacts -type f -ls
-          echo "=== Looking for app-* files ==="
-          find ./artifacts -name "app-*" -type f
-          echo "=== Looking for .7z files ==="
-          find ./artifacts -name "*.7z" -type f
-          echo "=== All files in artifacts ==="
-          ls -la ./artifacts/
+          if [ -d "./artifacts" ] && [ "$(ls -A ./artifacts)" ]; then
+            echo "artifacts-available=true" >> $GITHUB_OUTPUT
+            echo "=== Artifacts directory structure ==="
+            find ./artifacts -type f -ls
+            echo "=== Looking for app-* files ==="
+            find ./artifacts -name "app-*" -type f
+            echo "=== Looking for .7z files ==="
+            find ./artifacts -name "*.7z" -type f
+            echo "=== All files in artifacts ==="
+            ls -la ./artifacts/
+          else
+            echo "artifacts-available=false" >> $GITHUB_OUTPUT
+            echo "⚠️ No artifacts found. This might be a workflow_call or the build didn't complete successfully."
+            echo "Attempting to find artifacts from recent workflow runs..."
+          fi
 
       - name: 📁 Prepare release assets
         run: |
           mkdir -p release-assets
-          # 递归查找所有.7z文件（加密压缩包）
-          find ./artifacts -name "*.7z" -type f | while read file; do
-            echo "Found and copying: $file"
-            # 复制文件，保持原文件名（去掉路径）
-            cp "$file" "release-assets/$(basename "$file")"
-          done
+
+          if [[ "${{ steps.check-artifacts.outputs.artifacts-available }}" == "true" ]]; then
+            echo "📦 Using downloaded artifacts..."
+            # 递归查找所有.7z文件（加密压缩包）
+            find ./artifacts -name "*.7z" -type f | while read file; do
+              echo "Found and copying: $file"
+              # 复制文件，保持原文件名（去掉路径）
+              cp "$file" "release-assets/$(basename "$file")"
+            done
+          else
+            echo "⚠️ No artifacts available, creating placeholder release..."
+            echo "# Release without artifacts" > release-assets/README.md
+            echo "" >> release-assets/README.md
+            echo "This release was created but no build artifacts were available." >> release-assets/README.md
+            echo "This usually happens when:" >> release-assets/README.md
+            echo "1. The build workflow failed" >> release-assets/README.md
+            echo "2. This release was triggered independently" >> release-assets/README.md
+            echo "3. Artifacts expired or were not found" >> release-assets/README.md
+            echo "" >> release-assets/README.md
+            echo "Please check the build workflow status and re-run if necessary." >> release-assets/README.md
+          fi
 
           echo "=== Final release assets ==="
           ls -la release-assets/

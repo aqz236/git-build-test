@@ -22,10 +22,101 @@ jobs:
   release:
     name: 🚀 Create Release
     needs: build
-    uses: ./.github/workflows/release.yml
-    secrets: inherit
+    runs-on: ubuntu-latest
+    environment: elysiajs-rapid
     if: |
       github.ref == 'refs/heads/main' || 
       github.ref == 'refs/heads/dev' || 
       startsWith(github.ref, 'refs/tags/') || 
       github.event_name == 'repository_dispatch'
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 📥 Clone private repository
+        uses: ./.github/actions/clone-private-repo
+        with:
+          repository-url: ${{ secrets.REPOSITORY_URL }}
+          github-token: ${{ secrets.SELF_GITHUB_SECRETS }}
+
+      - name: 🏷️ Generate version
+        id: version
+        uses: ./.github/actions/generate-version
+
+      - name: 📋 Generate changelog
+        id: changelog
+        uses: ./.github/actions/generate-changelog
+        with:
+          version: ${{ steps.version.outputs.version }}
+          commit-count: 10
+          branches: "dev,main"
+
+      - name: 📤 Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+
+      - name: 🔍 Debug artifacts structure
+        run: |
+          echo "=== Artifacts directory structure ==="
+          find ./artifacts -type f -ls 2>/dev/null || echo "No artifacts directory found"
+          echo "=== Looking for app-* files ==="
+          find ./artifacts -name "app-*" -type f 2>/dev/null || echo "No app-* files found"
+          echo "=== Looking for .7z files ==="
+          find ./artifacts -name "*.7z" -type f 2>/dev/null || echo "No .7z files found"
+          echo "=== All files in artifacts ==="
+          ls -la ./artifacts/ 2>/dev/null || echo "Artifacts directory doesn't exist"
+
+      - name: 📁 Prepare release assets
+        run: |
+          mkdir -p release-assets
+
+          # 查找 artifacts
+          if [ -d "./artifacts" ] && [ "$(find ./artifacts -name "*.7z" -type f | wc -l)" -gt 0 ]; then
+            echo "📦 Found artifacts, preparing release assets..."
+            find ./artifacts -name "*.7z" -type f | while read file; do
+              echo "Found and copying: $file"
+              cp "$file" "release-assets/$(basename "$file")"
+            done
+          else
+            echo "⚠️ No artifacts found, creating placeholder release..."
+            echo "# Release without artifacts" > release-assets/README.md
+            echo "" >> release-assets/README.md
+            echo "This release was created but no build artifacts were available." >> release-assets/README.md
+            echo "This usually happens when:" >> release-assets/README.md
+            echo "1. The build workflow failed" >> release-assets/README.md
+            echo "2. Artifacts expired or were not found" >> release-assets/README.md
+            echo "" >> release-assets/README.md
+            echo "Please check the build workflow status and re-run if necessary." >> release-assets/README.md
+          fi
+
+          echo "=== Final release assets ==="
+          ls -la release-assets/
+
+      - name: 🏷️ Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: "Release ${{ steps.version.outputs.version }}"
+          body: ${{ steps.changelog.outputs.changelog }}
+          prerelease: ${{ steps.version.outputs.is-prerelease }}
+          files: release-assets/*
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 📢 Release Summary
+        run: |
+          echo "## 🎉 Release Created Successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version**: ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Prerelease**: ${{ steps.version.outputs.is-prerelease }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Available Downloads:" >> $GITHUB_STEP_SUMMARY
+          echo "- macOS: \`app-${{ steps.version.outputs.version }}-darwin-x64.7z\` (加密压缩包)" >> $GITHUB_STEP_SUMMARY
+          echo "- Linux: \`app-${{ steps.version.outputs.version }}-linux-x64.7z\` (加密压缩包)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔒 **注意**: 所有文件都经过密码保护，请联系管理员获取解压密码" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔗 [View Release](https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.version }})" >> $GITHUB_STEP_SUMMARY
