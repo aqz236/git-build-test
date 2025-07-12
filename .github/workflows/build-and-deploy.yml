@@ -1,5 +1,10 @@
 name: 🚀 Build and Deploy Release Page
 
+# 📊 配置参数
+env:
+  CHANGELOG_COMMIT_COUNT: 10 # 每个分支显示的提交数量
+  CHANGELOG_BRANCHES: "dev,main" # 要显示的分支列表（逗号分隔）
+
 on:
   push:
     branches:
@@ -10,9 +15,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version number (e.g., 1.0.0)'
+        description: "Version number (e.g., 1.0.0)"
         required: true
-        default: '1.0.0'
+        default: "1.0.0"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -21,6 +26,7 @@ concurrency:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
+    environment: elysiajs-rapid # 使用您已配置的环境
     permissions:
       contents: read
       pages: write
@@ -33,15 +39,23 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
-      # 这里假设您有一个私有仓库需要检出
-      # 如果没有，可以跳过这一步
-      - name: 📥 Checkout private repository
-        uses: actions/checkout@v4
-        with:
-          repository: YOUR_ORG/YOUR_PRIVATE_REPO  # 替换为您的私有仓库
-          token: ${{ secrets.PRIVATE_REPO_TOKEN }}  # 需要配置访问私有仓库的 token
-          path: app
-          fetch-depth: 0
+      # 使用您原有的方式克隆私有仓库
+      - name: 📥 Clone private repository
+        run: |
+          # 使用您在 elysiajs-rapid 环境中配置的方式
+          REPO_URL="${{ secrets.REPOSITORY_URL }}"
+          if [[ $REPO_URL == https://github.com/* ]]; then
+            # 从完整URL中提取 owner/repo
+            REPO_PATH=$(echo $REPO_URL | sed 's|https://github.com/||' | sed 's|\.git$||')
+          else
+            # 已经是 owner/repo 格式
+            REPO_PATH=$REPO_URL
+          fi
+
+          echo "Cloning repository: $REPO_PATH"
+          git clone https://${{ secrets.SELF_GITHUB_SECRETS }}@github.com/${REPO_PATH}.git app/
+          cd app/
+          git fetch --all --tags
 
       # 确定版本号
       - name: 🏷️ Determine version

@@ -62,7 +62,7 @@ runs:
         TRIGGER_BRANCH="${{ github.ref_name }}"
         TRIGGER_COMMIT="${{ github.sha }}"
         TRIGGER_AUTHOR="${{ github.actor }}"
-        
+
         # 获取提交消息
         COMMIT_MESSAGE=""
         if [[ "${{ github.event_name }}" == "push" ]]; then
@@ -98,61 +98,72 @@ runs:
         sed -i.bak "s|{{COMMIT_MESSAGE}}|$COMMIT_MESSAGE|g" "$RELEASE_DIR/index.html"
         sed -i.bak "s|{{GITHUB_BASE_URL}}|$GITHUB_BASE_URL|g" "$RELEASE_DIR/index.html"
         sed -i.bak "s|{{REPO_PATH}}|$REPO_PATH|g" "$RELEASE_DIR/index.html"
-        
+
         # 处理 changelog - 暂时用简单的替换，后续可以优化
         sed -i.bak "s|{{CHANGELOG}}|查看完整 changelog|g" "$RELEASE_DIR/index.html"
 
         # 清理备份文件
         rm -f "$RELEASE_DIR/index.html.bak"
 
-        # 简化 JSON 更新 - 创建基本的发布记录
+        # 更新 releases.json
+        echo "Updating releases.json..."
         if [[ ! -f "pages/releases.json" ]]; then
           echo '{"releases":[]}' > pages/releases.json
         fi
 
-        # 使用 jq 添加新记录（如果可用）
-        if command -v jq >/dev/null 2>&1; then
-          NEW_RELEASE=$(jq -n \
-            --arg version "${{ inputs.version }}" \
-            --arg commit_hash "$CURRENT_COMMIT" \
-            --arg created_at "$CREATED_AT" \
-            --arg branch "$CURRENT_BRANCH" \
-            --arg trigger_event "$TRIGGER_EVENT" \
-            --arg trigger_repo "$TRIGGER_REPO" \
-            --arg status "success" \
-            '{
-              version: $version,
-              commit_hash: $commit_hash,
-              created_at: $created_at,
-              branch: $branch,
-              trigger_event: $trigger_event,
-              trigger_repo: $trigger_repo,
-              status: $status
-            }')
-          
-          # 添加到 releases.json
+        # 安装 jq 如果不存在
+        if ! command -v jq >/dev/null 2>&1; then
+          echo "Installing jq..."
+          sudo apt-get update && sudo apt-get install -y jq
+        fi
+
+        # 创建新的发布记录
+        NEW_RELEASE=$(jq -n \
+          --arg version "${{ inputs.version }}" \
+          --arg commit_hash "$CURRENT_COMMIT" \
+          --arg created_at "$CREATED_AT" \
+          --arg branch "$CURRENT_BRANCH" \
+          --arg trigger_event "$TRIGGER_EVENT" \
+          --arg trigger_repo "$TRIGGER_REPO" \
+          --arg trigger_branch "$TRIGGER_BRANCH" \
+          --arg trigger_commit "$TRIGGER_COMMIT" \
+          --arg trigger_author "$TRIGGER_AUTHOR" \
+          --arg commit_message "$COMMIT_MESSAGE" \
+          --arg github_base_url "$GITHUB_BASE_URL" \
+          --arg repo_path "$REPO_PATH" \
+          --arg status "success" \
+          '{
+            version: $version,
+            commit_hash: $commit_hash,
+            created_at: $created_at,
+            branch: $branch,
+            private_branch: $branch,
+            trigger_event: $trigger_event,
+            trigger_repo: $trigger_repo,
+            trigger_branch: $trigger_branch,
+            trigger_commit: $trigger_commit,
+            trigger_author: $trigger_author,
+            commit_message: $commit_message,
+            status: $status,
+            github_base_url: $github_base_url,
+            repo_path: $repo_path
+          }')
+
+        # 检查是否已存在相同提交的记录
+        EXISTING=$(jq --arg commit "$CURRENT_COMMIT" '.releases[] | select(.commit_hash == $commit)' pages/releases.json)
+        if [[ -z "$EXISTING" ]]; then
+          # 添加到 releases.json（保留最近50个）
           jq --argjson new_release "$NEW_RELEASE" '.releases |= [($new_release)] + .[0:49]' pages/releases.json > pages/releases.json.tmp
           mv pages/releases.json.tmp pages/releases.json
+          echo "Added new release: ${{ inputs.version }}"
         else
-          echo "jq not available, using basic JSON update"
+          echo "Release for commit $CURRENT_COMMIT already exists"
         fi
 
         # 输出页面 URL
+        REPO_NAME=$(basename "${{ github.repository }}")
         if [[ -n "${{ github.repository }}" ]]; then
-          PAGE_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/${CURRENT_COMMIT}/"
-        else
-          PAGE_URL="/${CURRENT_COMMIT}/"
-        fi
-
-        echo "page-url=$PAGE_URL" >> $GITHUB_OUTPUT
-        echo "Generated release page: $PAGE_URL"
-        echo "Files created:"
-        ls -la "$RELEASE_DIR/"
-        echo "Updated releases.json"
-
-        # 输出页面 URL
-        if [[ -n "${{ github.repository }}" ]]; then
-          PAGE_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/${CURRENT_COMMIT}/"
+          PAGE_URL="https://${{ github.repository_owner }}.github.io/${REPO_NAME}/${CURRENT_COMMIT}/"
         else
           PAGE_URL="/${CURRENT_COMMIT}/"
         fi

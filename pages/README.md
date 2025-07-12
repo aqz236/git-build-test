@@ -35,6 +35,7 @@ pages/                          # GitHub Pages 根目录
 ### 1. 配置仓库
 
 1. **启用 GitHub Pages**:
+
    - 进入仓库设置 → Pages
    - 选择 Source: "GitHub Actions"
 
@@ -51,7 +52,6 @@ pages/                          # GitHub Pages 根目录
 # 如果使用私有仓库，替换这些值：
 repository: YOUR_ORG/YOUR_PRIVATE_REPO
 token: ${{ secrets.PRIVATE_REPO_TOKEN }}
-
 # 如果不使用私有仓库，删除私有仓库检出步骤
 ```
 
@@ -60,16 +60,19 @@ token: ${{ secrets.PRIVATE_REPO_TOKEN }}
 支持多种触发方式：
 
 #### 方式 1: 手动触发
+
 - 在 GitHub Actions 页面点击 "Run workflow"
 - 输入版本号 (如: 1.0.0)
 
 #### 方式 2: 推送触发
+
 ```bash
 git push origin main    # 推送到 main 分支自动触发
 git push origin dev     # 推送到 dev 分支自动触发
 ```
 
 #### 方式 3: API 触发
+
 ```bash
 curl -X POST \
   -H "Authorization: token YOUR_TOKEN" \
@@ -88,10 +91,10 @@ curl -X POST \
 - name: 📋 Generate changelog
   uses: ./.github/actions/generate-changelog
   with:
-    app-directory: app           # 私有仓库目录 (默认: app)
-    version: "1.0.0"            # 版本号 (必需)
-    commit-count: 10            # 每个分支显示的提交数量 (默认: 10)
-    branches: "dev,main"        # 要包含的分支列表 (默认: dev,main)
+    app-directory: app # 私有仓库目录 (默认: app)
+    version: "1.0.0" # 版本号 (必需)
+    commit-count: 10 # 每个分支显示的提交数量 (默认: 10)
+    branches: "dev,main" # 要包含的分支列表 (默认: dev,main)
 ```
 
 ### generate-release-page
@@ -102,19 +105,21 @@ curl -X POST \
 - name: 🌐 Generate release page
   uses: ./.github/actions/generate-release-page
   with:
-    app-directory: app          # 私有仓库目录 (默认: app)
-    version: "1.0.0"           # 版本号 (必需)
-    changelog: ${{ steps.changelog.outputs.changelog }}  # 变更日志内容 (必需)
+    app-directory: app # 私有仓库目录 (默认: app)
+    version: "1.0.0" # 版本号 (必需)
+    changelog: ${{ steps.changelog.outputs.changelog }} # 变更日志内容 (必需)
 ```
 
 ## 🎨 页面功能
 
 ### 主页面 (`pages/index.html`)
+
 - 📊 显示所有发布的列表
 - 🔍 发布状态和基本信息
 - 🔗 链接到详细页面
 
 ### 发布详情页面 (`pages/{commit-hash}/index.html`)
+
 - 📋 **概览标签**: 构建信息和提交消息
 - 💻 **提交记录标签**: 分支提交历史
 - 📦 **下载标签**: 下载说明和平台支持
@@ -123,23 +128,25 @@ curl -X POST \
 ## 🛠️ 自定义配置
 
 ### 修改样式
+
 编辑 `pages/index.html` 和 `pages/release-template.html` 中的 CSS:
 
 ```html
 <style>
-    /* 自定义渐变色 */
-    .gradient-bg {
-        background: linear-gradient(135deg, #your-color-1 0%, #your-color-2 100%);
-    }
-    
-    /* 自定义卡片样式 */
-    .card-hover {
-        /* 您的样式 */
-    }
+  /* 自定义渐变色 */
+  .gradient-bg {
+    background: linear-gradient(135deg, #your-color-1 0%, #your-color-2 100%);
+  }
+
+  /* 自定义卡片样式 */
+  .card-hover {
+    /* 您的样式 */
+  }
 </style>
 ```
 
 ### 修改技术栈
+
 在 `pages/release-template.html` 中修改技术栈部分:
 
 ```javascript
@@ -152,6 +159,7 @@ curl -X POST \
 ```
 
 ### 自定义发布数据
+
 修改 `pages/releases.json` 结构添加更多字段:
 
 ```json
@@ -160,7 +168,7 @@ curl -X POST \
     {
       "version": "1.0.0",
       "commit_hash": "abcd1234",
-      "custom_field": "your_value",
+      "custom_field": "your_value"
       // 添加更多字段
     }
   ]
@@ -170,12 +178,14 @@ curl -X POST \
 ## 📸 效果预览
 
 ### 主页面
+
 - 现代化的渐变背景
 - 响应式卡片布局
 - 发布状态指示器
 - 搜索和筛选功能
 
 ### 发布详情页面
+
 - 标签页式导航
 - 详细的构建信息
 - 交互式提交历史
@@ -186,10 +196,12 @@ curl -X POST \
 ### 常见问题
 
 1. **Pages 部署失败**
+
    - 确保启用了 GitHub Pages
    - 检查 Actions 权限设置
 
 2. **私有仓库访问失败**
+
    - 验证 `PRIVATE_REPO_TOKEN` 配置
    - 确保 token 有仓库读取权限
 
