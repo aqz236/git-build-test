@@ -51,8 +51,9 @@ runs:
           VERSION=${GITHUB_REF#refs/tags/}
           IS_PRERELEASE=false
         else
-          # 使用私有仓库的提交信息作为版本号
-          VERSION="v$(date +'%Y.%m.%d')-${PRIVATE_COMMIT_SHORT}"
+          # 使用私有仓库的提交信息作为版本号 - 包含完整时间戳确保唯一性
+          TIMESTAMP=$(date +'%Y%m%d-%H%M%S')
+          VERSION="v${TIMESTAMP}-${PRIVATE_COMMIT_SHORT}"
           IS_PRERELEASE=true
         fi
 

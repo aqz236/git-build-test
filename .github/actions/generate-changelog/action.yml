@@ -83,10 +83,10 @@ runs:
           if git show-ref --verify --quiet refs/remotes/origin/$branch; then
             echo "Branch $branch exists, fetching commits..."
             
-            # 获取该分支的提交，带超链接
+            # 获取该分支的提交，带超链接（新标签页打开）
             if [[ -n "$GITHUB_BASE_URL" ]]; then
-              # 带超链接的版本
-              BRANCH_COMMITS=$(git log origin/$branch --oneline -$COMMIT_COUNT --pretty=format:"  - %s ([%h]($GITHUB_BASE_URL/commit/%H))" 2>/dev/null || echo "  - 无提交记录")
+              # 带超链接的版本（新标签页打开）
+              BRANCH_COMMITS=$(git log origin/$branch --oneline -$COMMIT_COUNT --pretty=format:"  - %s (<a href=\"$GITHUB_BASE_URL/commit/%H\" target=\"_blank\">%h</a>)" 2>/dev/null || echo "  - 无提交记录")
             else
               # 无链接的备用版本
               BRANCH_COMMITS=$(git log origin/$branch --oneline -$COMMIT_COUNT --pretty=format:"  - %s (%h)" 2>/dev/null || echo "  - 无提交记录")
@@ -124,17 +124,20 @@ runs:
         TRIGGER_INFO_SECTION=""
         if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
           # 来自 repository dispatch 的构建
-          TRIGGER_INFO_SECTION="
-        ### 🔔 触发信息
+          TRIGGER_INFO_SECTION="<details>
+        <summary>🔔 触发信息</summary>
+
         - **触发仓库**: \`${{ github.event.client_payload.source_repository }}\`
         - **触发分支**: \`${{ github.event.client_payload.source_branch }}\`
         - **触发提交**: \`${{ github.event.client_payload.source_commit }}\`
         - **触发者**: \`${{ github.event.client_payload.pusher }}\`
-        - **提交消息**: ${{ github.event.client_payload.commit_message }}"
+        - **提交消息**: ${{ github.event.client_payload.commit_message }}
+        </details>"
         else
           # 普通的 push 或 workflow_dispatch
-          TRIGGER_INFO_SECTION="
-        ### 🔔 构建触发信息
+          TRIGGER_INFO_SECTION="<details>
+        <summary>🔔 构建触发信息</summary>
+
         - **触发仓库**: \`${{ github.repository }}\`
         - **触发分支**: \`${{ github.ref_name }}\`
         - **触发提交**: \`${TRIGGER_COMMIT}\`
@@ -146,44 +149,65 @@ runs:
         - **提交消息**: \`${{ github.event.head_commit.message }}\`
         - **提交者**: \`${{ github.event.head_commit.author.name }}\`"
           fi
+          
+          TRIGGER_INFO_SECTION="${TRIGGER_INFO_SECTION}
+        </details>"
         fi
 
         # 生成变更日志
         CHANGELOG="## 🎉 版本 ${{ inputs.version }}
 
-        ### 📅 发布信息
+        <details>
+        <summary>📅 发布信息</summary>
+
         - **发布时间**: $(date -u +'%Y-%m-%d %H:%M:%S UTC')
         - **私有仓库提交**: \`${CURRENT_COMMIT}\`
         - **私有仓库分支**: \`${CURRENT_BRANCH}\`
+        </details>
+
         ${TRIGGER_INFO_SECTION}
 
         ### 📝 私有仓库最新提交
         ${COMMITS_SECTION}
 
-        ### 📦 下载说明
+        <details>
+        <summary>� 使用说明</summary>
+
+        <details>
+        <summary>�📦 下载说明</summary>
+
         - **文件格式**: 所有构建产物都经过密码加密的 7z 压缩包保护
         - **解压密码**: 请联系管理员获取解压密码
         - **macOS**: 下载 \`app-*-darwin-x64.7z\`，解压后添加执行权限: \`chmod +x app-*-darwin-x64 && ./app-*-darwin-x64\`
         - **Linux**: 下载 \`app-*-linux-x64.7z\`，解压后添加执行权限: \`chmod +x app-*-linux-x64 && ./app-*-linux-x64\`
+        </details>
 
-        ### 🔓 解压说明
+        <details>
+        <summary>🔓 解压说明</summary>
+
         1. 下载对应平台的 .7z 文件
         2. 使用 7-Zip 或其他支持 7z 格式的解压工具
         3. 输入解压密码（请联系管理员）
         4. 解压后按平台说明运行
+        </details>
+
+        <details>
+        <summary>⚠️ macOS 用户注意</summary>
+
+        1. 下载可执行文件
+        2. 打开终端，进入下载目录
+        3. 执行 \`chmod +x app-*-darwin-x64 && ./app-*-darwin-x64\`
+        4. 如果仍提示安全问题，请在系统偏好设置 → 安全性与隐私 → 通用中点击\"仍要打开\"
+        5. 或者运行: \`xattr -d com.apple.quarantine ./app-*-darwin-x64\` 然后再执行
+        </details>
+
+        </details>
 
         ### 🔧 技术栈
         - **运行时**: Bun
         - **框架**: ElysiaJS
         - **数据库**: Drizzle ORM + PostgreSQL
-        - **架构**: DDD + CQRS
-
-        ### ⚠️ macOS 用户注意
-        1. 下载可执行文件
-        2. 打开终端，进入下载目录
-        3. 执行 \`chmod +x app-*-darwin-x64 && ./app-*-darwin-x64\`
-        4. 如果仍提示安全问题，请在系统偏好设置 → 安全性与隐私 → 通用中点击\"仍要打开\"
-        5. 或者运行: \`xattr -d com.apple.quarantine ./app-*-darwin-x64\` 然后再执行"
+        - **架构**: DDD + CQRS"
 
         # 保存到环境变量（处理多行）
         echo "changelog<<EOF" >> $GITHUB_OUTPUT
