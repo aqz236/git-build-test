@@ -60,17 +60,9 @@ jobs:
       # 确定版本号
       - name: 🏷️ Determine version
         id: version
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            VERSION="${{ github.event.inputs.version }}"
-          elif [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
-            VERSION="${{ github.event.client_payload.version || '1.0.0' }}"
-          else
-            # 基于时间戳生成版本号
-            VERSION="1.0.$(date +'%Y%m%d%H%M')"
-          fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Generated version: $VERSION"
+        uses: ./.github/actions/generate-version
+        with:
+          app-directory: app
 
       # 生成 changelog
       - name: 📋 Generate changelog

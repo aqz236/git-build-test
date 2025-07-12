@@ -117,15 +117,15 @@ runs:
           done
           
           if [[ "$DOWNLOAD_FILES" == "[]" ]]; then
-            echo "No assets found in any version variant, checking latest release..."
-            LATEST_RELEASE=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            echo "No assets found in any version variant, checking first release..."
+            FIRST_RELEASE=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
               -H "Accept: application/vnd.github.v3+json" \
-              "https://api.github.com/repos/${{ github.repository }}/releases/latest" 2>/dev/null)
+              "https://api.github.com/repos/${{ github.repository }}/releases?per_page=1" 2>/dev/null)
             
-            if [[ $? -eq 0 ]] && echo "$LATEST_RELEASE" | jq -e '.assets' >/dev/null 2>&1; then
-              LATEST_TAG=$(echo "$LATEST_RELEASE" | jq -r '.tag_name')
-              echo "Using assets from latest release: $LATEST_TAG"
-              DOWNLOAD_FILES=$(echo "$LATEST_RELEASE" | jq -c '.assets | map({
+            if [[ $? -eq 0 ]] && echo "$FIRST_RELEASE" | jq -e '.[0].assets' >/dev/null 2>&1; then
+              FIRST_TAG=$(echo "$FIRST_RELEASE" | jq -r '.[0].tag_name')
+              echo "Using assets from first release: $FIRST_TAG"
+              DOWNLOAD_FILES=$(echo "$FIRST_RELEASE" | jq -c '.[0].assets | map({
                 name: .name,
                 size: .size,
                 browser_download_url: .browser_download_url,
