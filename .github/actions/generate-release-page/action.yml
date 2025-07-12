@@ -1,0 +1,164 @@
+name: "🌐 Generate Release Page"
+description: "Generate GitHub Pages for each release"
+
+inputs:
+  app-directory:
+    description: "Directory containing the private repository"
+    required: false
+    default: "app"
+  version:
+    description: "Version string for the release"
+    required: true
+  commit-count:
+    description: "Number of commits to show per branch"
+    required: false
+    default: "10"
+  branches:
+    description: "Comma-separated list of branches to include"
+    required: false
+    default: "dev,main"
+  changelog:
+    description: "Generated changelog content"
+    required: true
+
+outputs:
+  page-url:
+    description: "URL of the generated release page"
+    value: ${{ steps.generate-page.outputs.page-url }}
+
+runs:
+  using: composite
+  steps:
+    - name: 🌐 Generate release page
+      id: generate-page
+      shell: bash
+      run: |
+        echo "Generating release page..."
+
+        # 进入私有仓库目录获取信息
+        cd ${{ inputs.app-directory }}/
+
+        # 获取当前私有仓库的信息
+        CURRENT_COMMIT=$(git rev-parse HEAD)
+        CURRENT_COMMIT_SHORT=$(git rev-parse --short HEAD)
+        CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+        # 获取远程仓库信息
+        REMOTE_URL=$(git remote get-url origin)
+        if [[ $REMOTE_URL == *"github.com"* ]]; then
+          REPO_PATH=$(echo $REMOTE_URL | sed 's|.*github.com[/:]\([^/]*\/[^/]*\).*|\1|' | sed 's|\.git$||')
+          GITHUB_BASE_URL="https://github.com/${REPO_PATH}"
+        else
+          REPO_PATH=""
+          GITHUB_BASE_URL=""
+        fi
+
+        # 返回根目录
+        cd ..
+
+        # 获取触发信息
+        TRIGGER_EVENT="${{ github.event_name }}"
+        TRIGGER_REPO="${{ github.repository }}"
+        TRIGGER_BRANCH="${{ github.ref_name }}"
+        TRIGGER_COMMIT="${{ github.sha }}"
+        TRIGGER_AUTHOR="${{ github.actor }}"
+        
+        # 获取提交消息
+        COMMIT_MESSAGE=""
+        if [[ "${{ github.event_name }}" == "push" ]]; then
+          COMMIT_MESSAGE="${{ github.event.head_commit.message }}"
+        elif [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
+          COMMIT_MESSAGE="${{ github.event.client_payload.commit_message }}"
+        fi
+
+        # 创建发布目录
+        RELEASE_DIR="pages/${CURRENT_COMMIT}"
+        mkdir -p "$RELEASE_DIR"
+
+        echo "Creating release page in: $RELEASE_DIR"
+        echo "Version: ${{ inputs.version }}"
+        echo "Commit: $CURRENT_COMMIT"
+
+        # 获取当前时间
+        CREATED_AT=$(date -u +'%Y-%m-%dT%H:%M:%S.%3NZ')
+
+        # 复制并处理模板文件
+        cp pages/release-template.html "$RELEASE_DIR/index.html"
+
+        # 简单的替换，避免复杂的多行处理
+        sed -i.bak "s|{{VERSION}}|${{ inputs.version }}|g" "$RELEASE_DIR/index.html"
+        sed -i.bak "s|{{CREATED_AT}}|$CREATED_AT|g" "$RELEASE_DIR/index.html"
+        sed -i.bak "s|{{COMMIT_HASH}}|$CURRENT_COMMIT|g" "$RELEASE_DIR/index.html"
+        sed -i.bak "s|{{PRIVATE_BRANCH}}|$CURRENT_BRANCH|g" "$RELEASE_DIR/index.html"
+        sed -i.bak "s|{{TRIGGER_EVENT}}|$TRIGGER_EVENT|g" "$RELEASE_DIR/index.html"
+        sed -i.bak "s|{{TRIGGER_REPO}}|$TRIGGER_REPO|g" "$RELEASE_DIR/index.html"
+        sed -i.bak "s|{{TRIGGER_BRANCH}}|$TRIGGER_BRANCH|g" "$RELEASE_DIR/index.html"
+        sed -i.bak "s|{{TRIGGER_COMMIT}}|$TRIGGER_COMMIT|g" "$RELEASE_DIR/index.html"
+        sed -i.bak "s|{{TRIGGER_AUTHOR}}|$TRIGGER_AUTHOR|g" "$RELEASE_DIR/index.html"
+        sed -i.bak "s|{{COMMIT_MESSAGE}}|$COMMIT_MESSAGE|g" "$RELEASE_DIR/index.html"
+        sed -i.bak "s|{{GITHUB_BASE_URL}}|$GITHUB_BASE_URL|g" "$RELEASE_DIR/index.html"
+        sed -i.bak "s|{{REPO_PATH}}|$REPO_PATH|g" "$RELEASE_DIR/index.html"
+        
+        # 处理 changelog - 暂时用简单的替换，后续可以优化
+        sed -i.bak "s|{{CHANGELOG}}|查看完整 changelog|g" "$RELEASE_DIR/index.html"
+
+        # 清理备份文件
+        rm -f "$RELEASE_DIR/index.html.bak"
+
+        # 简化 JSON 更新 - 创建基本的发布记录
+        if [[ ! -f "pages/releases.json" ]]; then
+          echo '{"releases":[]}' > pages/releases.json
+        fi
+
+        # 使用 jq 添加新记录（如果可用）
+        if command -v jq >/dev/null 2>&1; then
+          NEW_RELEASE=$(jq -n \
+            --arg version "${{ inputs.version }}" \
+            --arg commit_hash "$CURRENT_COMMIT" \
+            --arg created_at "$CREATED_AT" \
+            --arg branch "$CURRENT_BRANCH" \
+            --arg trigger_event "$TRIGGER_EVENT" \
+            --arg trigger_repo "$TRIGGER_REPO" \
+            --arg status "success" \
+            '{
+              version: $version,
+              commit_hash: $commit_hash,
+              created_at: $created_at,
+              branch: $branch,
+              trigger_event: $trigger_event,
+              trigger_repo: $trigger_repo,
+              status: $status
+            }')
+          
+          # 添加到 releases.json
+          jq --argjson new_release "$NEW_RELEASE" '.releases |= [($new_release)] + .[0:49]' pages/releases.json > pages/releases.json.tmp
+          mv pages/releases.json.tmp pages/releases.json
+        else
+          echo "jq not available, using basic JSON update"
+        fi
+
+        # 输出页面 URL
+        if [[ -n "${{ github.repository }}" ]]; then
+          PAGE_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/${CURRENT_COMMIT}/"
+        else
+          PAGE_URL="/${CURRENT_COMMIT}/"
+        fi
+
+        echo "page-url=$PAGE_URL" >> $GITHUB_OUTPUT
+        echo "Generated release page: $PAGE_URL"
+        echo "Files created:"
+        ls -la "$RELEASE_DIR/"
+        echo "Updated releases.json"
+
+        # 输出页面 URL
+        if [[ -n "${{ github.repository }}" ]]; then
+          PAGE_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/${CURRENT_COMMIT}/"
+        else
+          PAGE_URL="/${CURRENT_COMMIT}/"
+        fi
+
+        echo "page-url=$PAGE_URL" >> $GITHUB_OUTPUT
+        echo "Generated release page: $PAGE_URL"
+        echo "Files created:"
+        ls -la "$RELEASE_DIR/"
+        echo "Updated releases.json"

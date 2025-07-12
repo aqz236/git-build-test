@@ -1,0 +1,121 @@
+name: 🚀 Build and Deploy Release Page
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  repository_dispatch:
+    types: [build]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.0.0)'
+        required: true
+        default: '1.0.0'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      # 这里假设您有一个私有仓库需要检出
+      # 如果没有，可以跳过这一步
+      - name: 📥 Checkout private repository
+        uses: actions/checkout@v4
+        with:
+          repository: YOUR_ORG/YOUR_PRIVATE_REPO  # 替换为您的私有仓库
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}  # 需要配置访问私有仓库的 token
+          path: app
+          fetch-depth: 0
+
+      # 确定版本号
+      - name: 🏷️ Determine version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+          elif [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
+            VERSION="${{ github.event.client_payload.version || '1.0.0' }}"
+          else
+            # 基于时间戳生成版本号
+            VERSION="1.0.$(date +'%Y%m%d%H%M')"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Generated version: $VERSION"
+
+      # 生成 changelog
+      - name: 📋 Generate changelog
+        id: changelog
+        uses: ./.github/actions/generate-changelog
+        with:
+          app-directory: app
+          version: ${{ steps.version.outputs.version }}
+          commit-count: 10
+          branches: "dev,main"
+
+      # 生成发布页面
+      - name: 🌐 Generate release page
+        id: release-page
+        uses: ./.github/actions/generate-release-page
+        with:
+          app-directory: app
+          version: ${{ steps.version.outputs.version }}
+          changelog: ${{ steps.changelog.outputs.changelog }}
+
+      # 设置 GitHub Pages
+      - name: 🔧 Setup Pages
+        uses: actions/configure-pages@v4
+
+      # 上传 Pages 制品
+      - name: 📤 Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: pages/
+
+      # 部署到 GitHub Pages
+      - name: 🚀 Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      # 输出结果
+      - name: 📊 Output results
+        run: |
+          echo "## 🎉 发布完成!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **版本**: ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **发布页面**: ${{ steps.release-page.outputs.page-url }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **部署URL**: ${{ steps.deployment.outputs.page_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 变更日志预览" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.changelog.outputs.changelog }}" | head -20 >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  # 可选：通知步骤
+  notify:
+    runs-on: ubuntu-latest
+    needs: build-and-release
+    if: always()
+    steps:
+      - name: 📢 Notify completion
+        run: |
+          if [[ "${{ needs.build-and-release.result }}" == "success" ]]; then
+            echo "✅ 发布成功完成"
+          else
+            echo "❌ 发布失败"
+          fi
