@@ -116,7 +116,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.version.outputs.version }}
-          name: "Release ${{ steps.version.outputs.version }}"
+          name: "🚀 Release ${{ steps.version.outputs.version }}"
           body: ${{ steps.changelog.outputs.changelog }}
           prerelease: ${{ steps.version.outputs.is-prerelease }}
           files: release-assets/*
