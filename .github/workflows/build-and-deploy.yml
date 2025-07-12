@@ -28,7 +28,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-deploy:
+  build-and-release:
     runs-on: ubuntu-latest
     environment: elysiajs-rapid
     permissions:
@@ -66,13 +66,23 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
 
       # 设置 Bun 环境
       - name: 🥖 Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
           bun-version: ${{ env.BUN_VERSION }}
+
+      # 缓存 Bun 依赖
+      - name: 🗄️ Cache Bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ./app/node_modules
+            ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
 
       # 安装依赖
       - name: 📦 Install dependencies
@@ -171,12 +181,12 @@ jobs:
   # 可选：通知步骤
   notify:
     runs-on: ubuntu-latest
-    needs: build-and-deploy
+    needs: build-and-release
     if: always()
     steps:
       - name: 📢 Notify completion
         run: |
-          if [[ "${{ needs.build-and-deploy.result }}" == "success" ]]; then
+          if [[ "${{ needs.build-and-release.result }}" == "success" ]]; then
             echo "✅ 发布成功完成"
           else
             echo "❌ 发布失败"
