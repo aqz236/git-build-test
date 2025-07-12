@@ -179,10 +179,10 @@ jobs:
           echo "🔒 Creating encrypted archive: ${ARCHIVE_NAME}"
           7z a -p"${{ secrets.COMPRESSED_PASSWORD }}" -mhe=on "${ARCHIVE_NAME}" "${FILENAME}"
 
-          # 验证压缩包
+          # 验证压缩包（不显示内容，避免密码交互）
           echo "📋 Archive info:"
           ls -la "${ARCHIVE_NAME}"
-          7z l "${ARCHIVE_NAME}"
+          echo "✅ Archive created successfully"
 
           # 删除原始文件（只保留加密压缩包）
           rm "${FILENAME}"
