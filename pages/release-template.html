@@ -156,14 +156,9 @@
         changelog: `{{CHANGELOG}}`,
         githubBaseUrl: "{{GITHUB_BASE_URL}}",
         repoPath: "{{REPO_PATH}}",
-        downloadFiles: (() => {
-          try {
-            return JSON.parse("{{DOWNLOAD_FILES}}");
-          } catch (e) {
-            console.warn("Failed to parse download files:", e);
-            return [];
-          }
-        })(),
+        releaseHash: "{{RELEASE_HASH}}",
+        releaseHashShort: "{{RELEASE_HASH_SHORT}}",
+        downloadFiles: [], // 将通过API动态获取
       };
 
       function App() {
@@ -172,6 +167,10 @@
         const [copied, setCopied] = useState(false);
         const [branches, setBranches] = useState([]);
         const [branchData, setBranchData] = useState({});
+        // 添加下载文件状态
+        const [downloadFiles, setDownloadFiles] = useState([]);
+        const [loadingAssets, setLoadingAssets] = useState(true);
+        const [assetsError, setAssetsError] = useState(null);
 
         const formatDate = (dateString) => {
           const date = new Date(dateString);
@@ -293,6 +292,141 @@
           if (branchList.length > 0 && !activeBranch) {
             setActiveBranch(branchList[0]);
           }
+        }, []);
+
+        // 动态获取release assets
+        const fetchReleaseAssets = async () => {
+          setLoadingAssets(true);
+          setAssetsError(null);
+
+          const apiBase = `https://api.github.com/repos/${releaseData.triggerRepo}`;
+
+          try {
+            console.log("🔍 Fetching release assets...");
+            console.log("Repository:", releaseData.triggerRepo);
+            console.log("Version:", releaseData.version);
+            console.log("Release Hash:", releaseData.releaseHash);
+
+            // 方法1: 通过版本号获取release
+            let releaseInfo = null;
+
+            try {
+              const versionResponse = await fetch(
+                `${apiBase}/releases/tags/${releaseData.version}`
+              );
+              if (versionResponse.ok) {
+                releaseInfo = await versionResponse.json();
+                console.log(
+                  "✅ Found release by version:",
+                  releaseData.version
+                );
+              } else {
+                console.log(
+                  "❌ Release not found by version:",
+                  releaseData.version
+                );
+              }
+            } catch (e) {
+              console.log("❌ Error fetching by version:", e.message);
+            }
+
+            // 方法2: 如果版本号找不到，搜索所有releases找匹配的commit
+            if (
+              !releaseInfo ||
+              !releaseInfo.assets ||
+              releaseInfo.assets.length === 0
+            ) {
+              console.log("🔍 Searching all releases for matching commit...");
+
+              try {
+                const allReleasesResponse = await fetch(
+                  `${apiBase}/releases?per_page=50`
+                );
+                if (allReleasesResponse.ok) {
+                  const allReleases = await allReleasesResponse.json();
+                  console.log(`📋 Found ${allReleases.length} total releases`);
+
+                  // 查找target_commitish匹配的release
+                  const matchingRelease = allReleases.find(
+                    (release) =>
+                      release.target_commitish === releaseData.releaseHash ||
+                      release.target_commitish ===
+                        releaseData.releaseHashShort ||
+                      release.target_commitish?.startsWith(
+                        releaseData.releaseHashShort
+                      )
+                  );
+
+                  if (matchingRelease && matchingRelease.assets?.length > 0) {
+                    releaseInfo = matchingRelease;
+                    console.log(
+                      "🎯 Found matching release by commit:",
+                      matchingRelease.tag_name
+                    );
+                  }
+                }
+              } catch (e) {
+                console.log("❌ Error searching releases:", e.message);
+              }
+            }
+
+            // 方法3: 如果还是没找到，使用最新release
+            if (
+              !releaseInfo ||
+              !releaseInfo.assets ||
+              releaseInfo.assets.length === 0
+            ) {
+              console.log("📦 Trying latest release as fallback...");
+
+              try {
+                const latestResponse = await fetch(
+                  `${apiBase}/releases/latest`
+                );
+                if (latestResponse.ok) {
+                  releaseInfo = await latestResponse.json();
+                  console.log("📦 Using latest release:", releaseInfo.tag_name);
+                }
+              } catch (e) {
+                console.log("❌ Error fetching latest release:", e.message);
+              }
+            }
+
+            // 处理获取到的assets
+            if (
+              releaseInfo &&
+              releaseInfo.assets &&
+              releaseInfo.assets.length > 0
+            ) {
+              const assets = releaseInfo.assets.map((asset) => ({
+                name: asset.name,
+                size: asset.size,
+                browser_download_url: asset.browser_download_url,
+                download_count: asset.download_count,
+                content_type: asset.content_type,
+                updated_at: asset.updated_at,
+              }));
+
+              setDownloadFiles(assets);
+              console.log(
+                `✅ Successfully loaded ${assets.length} assets:`,
+                assets.map((a) => a.name)
+              );
+            } else {
+              console.log("⚠️ No assets found");
+              setDownloadFiles([]);
+            }
+          } catch (error) {
+            console.error("❌ Error fetching release assets:", error);
+            setAssetsError(`获取构建产物失败: ${error.message}`);
+            setDownloadFiles([]);
+          } finally {
+            setLoadingAssets(false);
+          }
+        };
+
+        // 在组件挂载时获取assets
+        useEffect(() => {
+          fetchReleaseAssets();
         }, []);
 
         // 当点击分支导航时切换分支
@@ -555,10 +689,30 @@
                     </h2>
 
                     {/* Download Files List */}
-                    {releaseData.downloadFiles &&
-                    releaseData.downloadFiles.length > 0 ? (
+                    {loadingAssets ? (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
+                        <span className="ml-3 text-gray-600">
+                          正在加载构建产物...
+                        </span>
+                      </div>
+                    ) : assetsError ? (
+                      <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                        <div className="flex items-center">
+                          <i className="fas fa-exclamation-triangle text-red-500 mr-3"></i>
+                          <span className="text-red-700">{assetsError}</span>
+                        </div>
+                        <button
+                          onClick={fetchReleaseAssets}
+                          className="mt-3 px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors"
+                        >
+                          <i className="fas fa-sync-alt mr-2"></i>
+                          重试加载
+                        </button>
+                      </div>
+                    ) : downloadFiles && downloadFiles.length > 0 ? (
                       <div className="grid gap-4 mb-8">
-                        {releaseData.downloadFiles.map((file, index) => {
+                        {downloadFiles.map((file, index) => {
                           const isPlatformFile =
                             file.name.includes("darwin") ||
                             file.name.includes("linux");

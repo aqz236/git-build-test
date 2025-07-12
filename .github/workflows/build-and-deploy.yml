@@ -74,6 +74,22 @@ jobs:
           commit-count: 10
           branches: "dev,main"
 
+      # 创建 GitHub Release（确保有release assets可以获取）
+      - name: 🏷️ Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: "Release ${{ steps.version.outputs.version }}"
+          body: ${{ steps.changelog.outputs.changelog }}
+          prerelease: ${{ steps.version.outputs.is-prerelease }}
+          draft: false
+          files: |
+            app-${{ steps.version.outputs.version }}-*.7z
+            *.7z
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true # 允许失败，因为可能没有构建产物
+
       # 生成发布页面
       - name: 🌐 Generate release page
         id: release-page

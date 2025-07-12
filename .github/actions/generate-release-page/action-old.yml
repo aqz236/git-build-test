@@ -91,13 +91,135 @@ runs:
 
         # 构建产物将通过前端JavaScript动态获取，简化后端逻辑
         DOWNLOAD_FILES="[]"
-
+        
         echo "📝 Release assets will be fetched dynamically by frontend JavaScript"
-        echo "🔗 GitHub API endpoints:"
+        echo "� GitHub API endpoints:"
         echo "  - Repository: ${{ github.repository }}"
         echo "  - Version: ${{ inputs.version }}"
         echo "  - Release Hash: $RELEASE_HASH"
         echo "  - API Base: https://api.github.com/repos/${{ github.repository }}"
+          
+          for VERSION_TAG in "${VERSION_VARIANTS[@]}"; do
+            echo "  🏷️ Trying version tag: $VERSION_TAG"
+            
+            RELEASE_INFO=$(curl -s \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/tags/$VERSION_TAG")
+            
+            # 检查API响应
+            if echo "$RELEASE_INFO" | jq -e '.tag_name' >/dev/null 2>&1; then
+              ASSETS_COUNT=$(echo "$RELEASE_INFO" | jq '.assets | length')
+              echo "  ✅ Found release: $VERSION_TAG with $ASSETS_COUNT assets"
+              
+              if [[ "$ASSETS_COUNT" -gt 0 ]]; then
+                DOWNLOAD_FILES=$(echo "$RELEASE_INFO" | jq -c '.assets | map({
+                  name: .name,
+                  size: .size,
+                  browser_download_url: .browser_download_url,
+                  download_count: .download_count,
+                  content_type: .content_type,
+                  updated_at: .updated_at
+                })')
+                echo "  📊 Successfully extracted $ASSETS_COUNT assets"
+                break
+              else
+                echo "  ⚠️ Release found but no assets available"
+              fi
+            else
+              echo "  ❌ No release found for tag: $VERSION_TAG"
+              # 打印错误信息用于调试
+              ERROR_MSG=$(echo "$RELEASE_INFO" | jq -r '.message // "Unknown error"')
+              echo "  🔍 API Error: $ERROR_MSG"
+            fi
+          done
+          
+          # 方法2: 如果通过版本号没找到，搜索所有releases找到匹配的commit
+          if [[ "$DOWNLOAD_FILES" == "[]" ]]; then
+            echo "� Method 2: Searching by target commit"
+            echo "  🎯 Looking for releases targeting commit: $RELEASE_HASH"
+            
+            ALL_RELEASES=$(curl -s \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/releases?per_page=100")
+            
+            if echo "$ALL_RELEASES" | jq -e '.[0]' >/dev/null 2>&1; then
+              TOTAL_RELEASES=$(echo "$ALL_RELEASES" | jq 'length')
+              echo "  📋 Found $TOTAL_RELEASES total releases, searching..."
+              
+              # 查找target_commitish匹配的release
+              MATCHING_RELEASE=$(echo "$ALL_RELEASES" | jq --arg hash "$RELEASE_HASH" --arg short_hash "$RELEASE_HASH_SHORT" '
+                .[] | select(
+                  .target_commitish == $hash or 
+                  .target_commitish == $short_hash or
+                  (.target_commitish | startswith($short_hash))
+                ) | select(.assets | length > 0)')
+              
+              if [[ -n "$MATCHING_RELEASE" ]] && [[ "$MATCHING_RELEASE" != "null" ]]; then
+                FOUND_TAG=$(echo "$MATCHING_RELEASE" | jq -r '.tag_name')
+                ASSETS_COUNT=$(echo "$MATCHING_RELEASE" | jq '.assets | length')
+                echo "  🎯 Found matching release: $FOUND_TAG with $ASSETS_COUNT assets"
+                
+                DOWNLOAD_FILES=$(echo "$MATCHING_RELEASE" | jq -c '.assets | map({
+                  name: .name,
+                  size: .size,
+                  browser_download_url: .browser_download_url,
+                  download_count: .download_count,
+                  content_type: .content_type,
+                  updated_at: .updated_at
+                })')
+              else
+                echo "  ❌ No release found with matching commit hash"
+              fi
+            else
+              echo "  ❌ Failed to fetch releases list"
+              ERROR_MSG=$(echo "$ALL_RELEASES" | jq -r '.message // "Unknown error"')
+              echo "  🔍 API Error: $ERROR_MSG"
+            fi
+          fi
+          
+          # 方法3: 如果还是没找到，尝试最新的release作为fallback
+          if [[ "$DOWNLOAD_FILES" == "[]" ]]; then
+            echo "📦 Method 3: Using latest release as fallback"
+            
+            LATEST_RELEASE=$(curl -s \
+              -H "Authorization: Bearer $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/latest")
+            
+            if echo "$LATEST_RELEASE" | jq -e '.tag_name' >/dev/null 2>&1; then
+              LATEST_TAG=$(echo "$LATEST_RELEASE" | jq -r '.tag_name')
+              ASSETS_COUNT=$(echo "$LATEST_RELEASE" | jq '.assets | length')
+              echo "  📦 Using latest release: $LATEST_TAG with $ASSETS_COUNT assets"
+              
+              if [[ "$ASSETS_COUNT" -gt 0 ]]; then
+                DOWNLOAD_FILES=$(echo "$LATEST_RELEASE" | jq -c '.assets | map({
+                  name: .name,
+                  size: .size,
+                  browser_download_url: .browser_download_url,
+                  download_count: .download_count,
+                  content_type: .content_type,
+                  updated_at: .updated_at
+                })')
+              fi
+            else
+              echo "  ❌ No latest release available"
+            fi
+          fi
+          
+          # 最终结果
+          FINAL_COUNT=$(echo "$DOWNLOAD_FILES" | jq 'length')
+          if [[ "$FINAL_COUNT" -gt 0 ]]; then
+            echo "✅ Successfully found $FINAL_COUNT download files"
+            echo "📋 Assets found:"
+            echo "$DOWNLOAD_FILES" | jq -r '.[] | "  - \(.name) (\(.size | . / 1024 / 1024 * 100 | floor / 100)MB)"'
+          else
+            echo "⚠️ No assets found for this release"
+          fi
+        else
+          echo "❌ GITHUB_TOKEN not available, cannot fetch release assets"
+        fi
 
         # 复制并处理模板文件
         cp pages/release-template.html "$RELEASE_DIR/index.html"
@@ -116,9 +238,6 @@ runs:
         export REPLACE_GITHUB_BASE_URL="$GITHUB_BASE_URL"
         export REPLACE_REPO_PATH="$REPO_PATH"
         export REPLACE_DOWNLOAD_FILES="$DOWNLOAD_FILES"
-        # 添加前端API调用需要的参数
-        export REPLACE_RELEASE_HASH="$RELEASE_HASH"
-        export REPLACE_RELEASE_HASH_SHORT="$RELEASE_HASH_SHORT"
 
         # 将 changelog 写入临时文件以避免多行内容的问题
         CHANGELOG_FILE=$(mktemp)
@@ -147,8 +266,6 @@ runs:
         NEW_RELEASE=$(jq -n \
           --arg version "${{ inputs.version }}" \
           --arg commit_hash "$CURRENT_COMMIT" \
-          --arg release_hash "$RELEASE_HASH" \
-          --arg release_hash_short "$RELEASE_HASH_SHORT" \
           --arg created_at "$CREATED_AT" \
           --arg branch "$CURRENT_BRANCH" \
           --arg trigger_event "$TRIGGER_EVENT" \
@@ -163,8 +280,6 @@ runs:
           '{
             version: $version,
             commit_hash: $commit_hash,
-            release_hash: $release_hash,
-            release_hash_short: $release_hash_short,
             created_at: $created_at,
             branch: $branch,
             private_branch: $branch,
