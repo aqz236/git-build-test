@@ -7,6 +7,7 @@
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/embla-carousel/embla-carousel.umd.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link
       rel="stylesheet"
@@ -56,13 +57,90 @@
       .copy-button:hover {
         background-color: #374151;
       }
+      
+      /* Embla Carousel Styles */
+      .embla {
+        overflow: hidden;
+      }
+      .embla__container {
+        display: flex;
+      }
+      .embla__slide {
+        flex: 0 0 100%;
+        min-width: 0;
+      }
+      
+      /* Branch Navigation Styles */
+      .branch-nav {
+        display: flex;
+        border-bottom: 2px solid #e5e7eb;
+        margin-bottom: 1.5rem;
+        overflow-x: auto;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+      }
+      .branch-nav::-webkit-scrollbar {
+        display: none;
+      }
+      
+      .branch-tab {
+        position: relative;
+        padding: 0.75rem 1.5rem;
+        margin-right: 0.5rem;
+        border-radius: 0.5rem 0.5rem 0 0;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        white-space: nowrap;
+        min-width: fit-content;
+        background: transparent;
+        border: none;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #6b7280;
+      }
+      
+      .branch-tab:hover {
+        background-color: #f3f4f6;
+        color: #374151;
+      }
+      
+      .branch-tab.active {
+        background-color: #3b82f6;
+        color: white;
+        font-weight: 600;
+      }
+      
+      .branch-tab.active::after {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background-color: #3b82f6;
+      }
+      
+      /* Content area animations */
+      .content-transition {
+        transition: all 0.3s ease;
+      }
+      
+      .fade-enter {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      
+      .fade-enter-active {
+        opacity: 1;
+        transform: translateY(0);
+      }
     </style>
   </head>
   <body class="bg-gray-50 min-h-screen">
     <div id="root"></div>
 
     <script type="text/babel">
-      const { useState, useEffect } = React;
+      const { useState, useEffect, useRef } = React;
 
       // 从模板变量中获取数据
       const releaseData = {
@@ -86,12 +164,16 @@
             console.warn("Failed to parse download files:", e);
             return [];
           }
-        })(), // 新增下载文件列表
+        })(),
       };
 
       function App() {
         const [activeTab, setActiveTab] = useState("overview");
+        const [activeBranch, setActiveBranch] = useState(null);
         const [copied, setCopied] = useState(false);
+        const [branches, setBranches] = useState([]);
+        const emblaRef = useRef();
+        const emblaApi = useRef();
 
         const formatDate = (dateString) => {
           const date = new Date(dateString);
@@ -112,85 +194,121 @@
           });
         };
 
+        // 改进的changelog解析函数
         const parseChangelog = (changelog) => {
-          const sections = {};
+          const branchData = {};
           const lines = changelog.split("\n");
-          let currentSection = null;
-          let currentContent = [];
+          let currentBranch = null;
+          let currentCommits = [];
 
           lines.forEach((line) => {
-            if (line.startsWith("###") || line.startsWith("####")) {
-              if (currentSection) {
-                sections[currentSection] = currentContent.join("\n");
+            // 匹配分支标题，例如：#### 📋 `dev` 分支最新提交
+            const branchMatch = line.match(/####.*`([^`]+)`.*分支最新提交/);
+            if (branchMatch) {
+              // 保存之前的分支数据
+              if (currentBranch && currentCommits.length > 0) {
+                branchData[currentBranch] = currentCommits;
               }
-              currentSection = line
-                .replace(/^#+\s*/, "")
-                .replace(/📝|📋|🔧|⚠️|📦|🔓/g, "")
-                .trim();
-              currentContent = [];
-            } else if (currentSection) {
-              currentContent.push(line);
+              currentBranch = branchMatch[1];
+              currentCommits = [];
+            }
+            // 匹配提交项，以 "  - " 开头
+            else if (line.trim().match(/^-\s+/) && currentBranch) {
+              const commitText = line.replace(/^\s*-\s*/, "").trim();
+              if (commitText) {
+                currentCommits.push(commitText);
+              }
             }
           });
 
-          if (currentSection) {
-            sections[currentSection] = currentContent.join("\n");
+          // 保存最后一个分支的数据
+          if (currentBranch && currentCommits.length > 0) {
+            branchData[currentBranch] = currentCommits;
           }
 
-          // 调试：输出所有解析到的节
-          console.log("Parsed changelog sections:", Object.keys(sections));
-
-          return sections;
+          console.log("Parsed branch data:", branchData);
+          return branchData;
         };
 
-        const renderCommitList = (content) => {
-          const lines = content.split("\n").filter((line) => line.trim());
-          const commits = [];
-          let currentBranch = null;
-
-          lines.forEach((line) => {
-            if (line.includes("分支最新提交")) {
-              currentBranch = line.match(/`([^`]+)`/)?.[1] || "unknown";
-            } else if (line.trim().startsWith("- ") && currentBranch) {
-              const commitText = line.replace(/^\s*-\s*/, "");
-              commits.push({ branch: currentBranch, text: commitText });
-            }
-          });
-
-          return (
-            <div className="space-y-4">
-              {Object.entries(
-                commits.reduce((acc, commit) => {
-                  if (!acc[commit.branch]) acc[commit.branch] = [];
-                  acc[commit.branch].push(commit.text);
-                  return acc;
-                }, {})
-              ).map(([branch, commitTexts]) => (
-                <div
-                  key={branch}
-                  className="bg-white rounded-lg p-4 border border-gray-200"
-                >
-                  <h4 className="font-semibold text-gray-800 mb-3 flex items-center">
-                    <i className="fas fa-code-branch mr-2 text-blue-500"></i>
-                    {branch} 分支
-                  </h4>
-                  <div className="space-y-2">
-                    {commitTexts.map((commitText, idx) => (
-                      <div
-                        key={idx}
-                        className="commit-item p-2 rounded border-l-4 border-blue-200"
+        // 渲染单个提交项
+        const renderCommit = (commitText, index) => {
+          // 解析提交格式：提交消息 (链接)
+          const linkMatch = commitText.match(/(.*?)\s*\(<a[^>]*href="([^"]*)"[^>]*>([^<]*)<\/a>\)/);
+          
+          if (linkMatch) {
+            const [, message, url, hash] = linkMatch;
+            return (
+              <div key={index} className="commit-item p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <p className="text-gray-800 font-medium mb-1">{message.trim()}</p>
+                    <div className="flex items-center space-x-2">
+                      <span className="inline-flex items-center px-2 py-1 rounded text-xs font-mono bg-gray-100 text-gray-600">
+                        <i className="fas fa-code-commit mr-1"></i>
+                        {hash}
+                      </span>
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center text-blue-600 hover:text-blue-800 text-xs"
                       >
-                        <div dangerouslySetInnerHTML={{ __html: commitText }} />
-                      </div>
-                    ))}
+                        <i className="fas fa-external-link-alt mr-1"></i>
+                        查看提交
+                      </a>
+                    </div>
                   </div>
                 </div>
-              ))}
+              </div>
+            );
+          }
+
+          // 如果没有匹配到链接格式，直接显示原文
+          return (
+            <div key={index} className="commit-item p-3 rounded-lg border border-gray-200">
+              <p className="text-gray-800" dangerouslySetInnerHTML={{ __html: commitText }} />
             </div>
           );
         };
 
-        const changelogSections = parseChangelog(releaseData.changelog);
+        // 初始化Embla Carousel
+        useEffect(() => {
+          const branchData = parseChangelog(releaseData.changelog);
+          const branchList = Object.keys(branchData);
+          setBranches(branchList);
+          
+          if (branchList.length > 0) {
+            setActiveBranch(branchList[0]);
+          }
+
+          if (emblaRef.current && window.EmblaCarousel) {
+            emblaApi.current = window.EmblaCarousel(emblaRef.current, {
+              align: 'start',
+              skipSnaps: false,
+            });
+            
+            emblaApi.current.on('select', () => {
+              const selectedIndex = emblaApi.current.selectedScrollSnap();
+              if (branchList[selectedIndex]) {
+                setActiveBranch(branchList[selectedIndex]);
+              }
+            });
+          }
+
+          return () => {
+            if (emblaApi.current) {
+              emblaApi.current.destroy();
+            }
+          };
+        }, []);
+
+        // 当点击分支导航时，同步轮播图
+        const handleBranchClick = (branchName, index) => {
+          setActiveBranch(branchName);
+          if (emblaApi.current) {
+            emblaApi.current.scrollTo(index);
+          }
+        };
 
         return (
           <div className="min-h-screen">
@@ -374,71 +492,79 @@
               )}
 
               {activeTab === "commits" && (
-                <div className="bg-white rounded-xl shadow-lg p-8">
-                  <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
-                    <i className="fas fa-code-commit mr-3 text-purple-500"></i>
-                    提交记录
-                  </h2>
-                  {(() => {
-                    // 查找所有分支相关的节
-                    const branchSections = Object.keys(changelogSections).filter(key => 
-                      key.includes('分支最新提交')
-                    );
+                <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+                  <div className="p-8 pb-4">
+                    <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                      <i className="fas fa-code-commit mr-3 text-purple-500"></i>
+                      提交记录
+                    </h2>
                     
-                    if (branchSections.length > 0) {
+                    {(() => {
+                      const branchData = parseChangelog(releaseData.changelog);
+                      const branchList = Object.keys(branchData);
+                      
+                      if (branchList.length === 0) {
+                        return (
+                          <div className="text-center py-8 text-gray-500">
+                            <i className="fas fa-code-branch text-4xl mb-4 opacity-50"></i>
+                            <p>暂无提交记录</p>
+                          </div>
+                        );
+                      }
+
                       return (
-                        <div className="space-y-4">
-                          {branchSections.map(sectionKey => {
-                            const branchMatch = sectionKey.match(/`([^`]+)`/);
-                            const branchName = branchMatch ? branchMatch[1] : sectionKey;
-                            const content = changelogSections[sectionKey];
-                            
-                            // 解析该分支的提交
-                            const lines = content.split("\\n").filter(line => line.trim());
-                            const commits = lines
-                              .filter(line => line.trim().startsWith("- "))
-                              .map(line => line.replace(/^\\s*-\\s*/, ""));
-                            
-                            if (commits.length === 0) return null;
-                            
-                            return (
-                              <div key={sectionKey} className="bg-white rounded-lg p-4 border border-gray-200">
-                                <h4 className="font-semibold text-gray-800 mb-3 flex items-center">
-                                  <i className="fas fa-code-branch mr-2 text-blue-500"></i>
-                                  {branchName} 分支
-                                </h4>
-                                <div className="space-y-2">
-                                  {commits.map((commitText, idx) => (
-                                    <div
-                                      key={idx}
-                                      className="commit-item p-2 rounded border-l-4 border-blue-200"
-                                    >
-                                      <div dangerouslySetInnerHTML={{ __html: commitText }} />
+                        <div>
+                          {/* 分支导航 */}
+                          <div className="branch-nav">
+                            {branchList.map((branchName, index) => (
+                              <button
+                                key={branchName}
+                                onClick={() => handleBranchClick(branchName, index)}
+                                className={`branch-tab ${activeBranch === branchName ? 'active' : ''}`}
+                              >
+                                <i className="fas fa-code-branch mr-2"></i>
+                                {branchName}
+                                <span className="ml-2 text-xs bg-white bg-opacity-20 px-2 py-1 rounded-full">
+                                  {branchData[branchName].length}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* Embla轮播容器 */}
+                          <div className="embla" ref={emblaRef}>
+                            <div className="embla__container">
+                              {branchList.map((branchName) => (
+                                <div key={branchName} className="embla__slide">
+                                  <div className="content-transition p-6">
+                                    <div className="space-y-3">
+                                      {branchData[branchName].map((commit, index) => 
+                                        renderCommit(commit, index)
+                                      )}
                                     </div>
-                                  ))}
+                                    
+                                    {/* 分支统计信息 */}
+                                    <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                                      <div className="flex items-center justify-between text-sm text-gray-600">
+                                        <span className="flex items-center">
+                                          <i className="fas fa-code-branch mr-2"></i>
+                                          {branchName} 分支
+                                        </span>
+                                        <span className="flex items-center">
+                                          <i className="fas fa-list-ol mr-2"></i>
+                                          共 {branchData[branchName].length} 个提交
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
                                 </div>
-                              </div>
-                            );
-                          })}
+                              ))}
+                            </div>
+                          </div>
                         </div>
                       );
-                    } else {
-                      return (
-                        <div className="text-gray-500">
-                          <p>暂无提交记录</p>
-                          <details className="mt-4">
-                            <summary className="cursor-pointer text-sm">调试信息</summary>
-                            <pre className="text-xs mt-2 bg-gray-100 p-2 rounded">
-                              {JSON.stringify({
-                                availableSections: Object.keys(changelogSections),
-                                branchSections: branchSections
-                              }, null, 2)}
-                            </pre>
-                          </details>
-                        </div>
-                      );
-                    }
-                  })()}
+                    })()}
+                  </div>
                 </div>
               )}
 
