@@ -243,7 +243,6 @@ jobs:
           - **发布时间**: $(date -u +'%Y-%m-%d %H:%M:%S UTC')
           - **提交哈希**: \`${CURRENT_COMMIT}\`
           - **分支**: \`${CURRENT_BRANCH}\`
-          - **私有仓库**: ${{ secrets.REPOSITORY_URL }}
 
           ### 📝 本次更新内容
           ${COMMITS}
