@@ -15,6 +15,7 @@ jobs:
   build:
     name: 🔨 Build for ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    environment: elysiajs-rapid
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
@@ -29,7 +30,19 @@ jobs:
     steps:
       - name: 📥 Clone private repository
         run: |
-          git clone https://${{ secrets.SELF_GITHUB_SECRETS }}@github.com/${{ secrets.REPOSITORY_URL }}.git .
+          # REPOSITORY_URL 应该是: owner/repo 格式，例如 aqz236/your-repo
+          # 如果是完整URL，需要提取 owner/repo 部分
+          REPO_URL="${{ secrets.REPOSITORY_URL }}"
+          if [[ $REPO_URL == https://github.com/* ]]; then
+            # 从完整URL中提取 owner/repo
+            REPO_PATH=$(echo $REPO_URL | sed 's|https://github.com/||' | sed 's|\.git$||')
+          else
+            # 已经是 owner/repo 格式
+            REPO_PATH=$REPO_URL
+          fi
+          
+          echo "Cloning repository: $REPO_PATH"
+          git clone https://${{ secrets.SELF_GITHUB_SECRETS }}@github.com/${REPO_PATH}.git .
           git fetch --all --tags
 
       - name: 🏷️ Get version
@@ -144,12 +157,25 @@ jobs:
     name: 🚀 Create Release
     needs: build
     runs-on: ubuntu-latest
+    environment: elysiajs-rapid
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev' || startsWith(github.ref, 'refs/tags/')
 
     steps:
       - name: 📥 Clone private repository
         run: |
-          git clone https://${{ secrets.SELF_GITHUB_SECRETS }}@github.com/${{ secrets.REPOSITORY_URL }}.git .
+          # REPOSITORY_URL 应该是: owner/repo 格式，例如 aqz236/your-repo
+          # 如果是完整URL，需要提取 owner/repo 部分
+          REPO_URL="${{ secrets.REPOSITORY_URL }}"
+          if [[ $REPO_URL == https://github.com/* ]]; then
+            # 从完整URL中提取 owner/repo
+            REPO_PATH=$(echo $REPO_URL | sed 's|https://github.com/||' | sed 's|\.git$||')
+          else
+            # 已经是 owner/repo 格式
+            REPO_PATH=$REPO_URL
+          fi
+          
+          echo "Cloning repository: $REPO_PATH"
+          git clone https://${{ secrets.SELF_GITHUB_SECRETS }}@github.com/${REPO_PATH}.git .
           git fetch --all --tags
 
       - name: 🏷️ Get version
