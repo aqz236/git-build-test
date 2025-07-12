@@ -54,7 +54,11 @@ jobs:
           # 获取私有仓库的当前提交信息
           PRIVATE_COMMIT=$(git rev-parse HEAD)
           PRIVATE_COMMIT_SHORT=$(git rev-parse --short HEAD)
-
+          
+          # 获取触发此次构建的仓库信息（当前Action运行的仓库）
+          TRIGGER_COMMIT="${{ github.sha }}"
+          TRIGGER_COMMIT_SHORT="${TRIGGER_COMMIT:0:7}"
+          
           # 检查是否来自 repository dispatch
           if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
             # 使用触发仓库的信息
@@ -66,12 +70,14 @@ jobs:
           elif [[ $GITHUB_REF == refs/tags/* ]]; then
             VERSION=${GITHUB_REF#refs/tags/}
           else
-            VERSION="v$(date +'%Y.%m.%d')-${PRIVATE_COMMIT_SHORT}"
+            # 使用触发仓库的提交信息作为版本号的一部分
+            VERSION="v$(date +'%Y.%m.%d')-build-${TRIGGER_COMMIT_SHORT}"
           fi
 
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Version: $VERSION"
           echo "Private repo commit: $PRIVATE_COMMIT"
+          echo "Trigger repo commit: $TRIGGER_COMMIT"
 
       - name: 🟢 Setup Bun
         uses: oven-sh/setup-bun@v1
@@ -227,6 +233,10 @@ jobs:
           # 获取私有仓库的当前提交信息
           PRIVATE_COMMIT=$(git rev-parse HEAD)
           PRIVATE_COMMIT_SHORT=$(git rev-parse --short HEAD)
+          
+          # 获取触发此次构建的仓库信息（当前Action运行的仓库）
+          TRIGGER_COMMIT="${{ github.sha }}"
+          TRIGGER_COMMIT_SHORT="${TRIGGER_COMMIT:0:7}"
 
           # 检查是否来自 repository dispatch
           if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
@@ -241,7 +251,8 @@ jobs:
             VERSION=${GITHUB_REF#refs/tags/}
             IS_PRERELEASE=false
           else
-            VERSION="v$(date +'%Y.%m.%d')-${PRIVATE_COMMIT_SHORT}"
+            # 使用触发仓库的提交信息作为版本号的一部分
+            VERSION="v$(date +'%Y.%m.%d')-build-${TRIGGER_COMMIT_SHORT}"
             IS_PRERELEASE=true
           fi
 
@@ -249,6 +260,7 @@ jobs:
           echo "is-prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
           echo "Version: $VERSION"
           echo "Private repo commit: $PRIVATE_COMMIT"
+          echo "Trigger repo commit: $TRIGGER_COMMIT"
 
       - name: 📋 Generate changelog
         id: changelog
@@ -259,6 +271,10 @@ jobs:
           CURRENT_COMMIT=$(git rev-parse HEAD)
           CURRENT_COMMIT_SHORT=$(git rev-parse --short HEAD)
           CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          
+          # 获取触发仓库的信息
+          TRIGGER_COMMIT="${{ github.sha }}"
+          TRIGGER_COMMIT_SHORT="${TRIGGER_COMMIT:0:7}"
 
           # 获取最近的标签
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
@@ -284,10 +300,11 @@ jobs:
             COMMITS="- 构建和发布应用程序 ($CURRENT_COMMIT_SHORT)"
           fi
 
-          # 生成变更日志
+          # 获取触发仓库的提交信息
+          TRIGGER_INFO_SECTION=""
           if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
             # 来自 repository dispatch 的构建
-            TRIGGER_INFO="
+            TRIGGER_INFO_SECTION="
           ### 🔔 触发信息
           - **触发仓库**: \`${{ github.event.client_payload.source_repository }}\`
           - **触发分支**: \`${{ github.event.client_payload.source_branch }}\`
@@ -295,18 +312,32 @@ jobs:
           - **触发者**: \`${{ github.event.client_payload.pusher }}\`
           - **提交消息**: ${{ github.event.client_payload.commit_message }}"
           else
-            TRIGGER_INFO=""
+            # 普通的 push 或 workflow_dispatch
+            TRIGGER_INFO_SECTION="
+          ### 🔔 构建触发信息
+          - **触发仓库**: \`${{ github.repository }}\`
+          - **触发分支**: \`${{ github.ref_name }}\`
+          - **触发提交**: \`${TRIGGER_COMMIT}\`
+          - **触发事件**: \`${{ github.event_name }}\`"
+            
+            # 如果是 push 事件，添加提交信息
+            if [[ "${{ github.event_name }}" == "push" ]]; then
+              TRIGGER_INFO_SECTION="${TRIGGER_INFO_SECTION}
+          - **提交消息**: \`${{ github.event.head_commit.message }}\`
+          - **提交者**: \`${{ github.event.head_commit.author.name }}\`"
+            fi
           fi
 
+          # 生成变更日志
           CHANGELOG="## 🎉 版本 ${{ steps.version.outputs.version }}
 
           ### 📅 发布信息
           - **发布时间**: $(date -u +'%Y-%m-%d %H:%M:%S UTC')
-          - **提交哈希**: \`${CURRENT_COMMIT}\`
-          - **分支**: \`${CURRENT_BRANCH}\`
-          ${TRIGGER_INFO}
+          - **私有仓库提交**: \`${CURRENT_COMMIT}\`
+          - **私有仓库分支**: \`${CURRENT_BRANCH}\`
+          ${TRIGGER_INFO_SECTION}
 
-          ### 📝 本次更新内容
+          ### 📝 私有仓库更新内容
           ${COMMITS}
 
           ### 📦 下载说明
