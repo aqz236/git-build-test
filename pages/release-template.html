@@ -125,7 +125,7 @@
               }
               currentSection = line
                 .replace(/^#+\s*/, "")
-                .replace(/📝|📋|🔧|⚠️|📦|🔓|� /g, "")
+                .replace(/📝|📋|🔧|⚠️|📦|🔓/g, "")
                 .trim();
               currentContent = [];
             } else if (currentSection) {
@@ -382,7 +382,18 @@
                   {changelogSections["私有仓库最新提交"] ? (
                     renderCommitList(changelogSections["私有仓库最新提交"])
                   ) : (
-                    <p className="text-gray-500">暂无提交记录</p>
+                    <div className="text-gray-500">
+                      <p>暂无提交记录</p>
+                      <details className="mt-4">
+                        <summary className="cursor-pointer text-sm">调试信息</summary>
+                        <pre className="text-xs mt-2 bg-gray-100 p-2 rounded">
+                          {JSON.stringify({
+                            availableSections: Object.keys(changelogSections),
+                            target: "私有仓库最新提交"
+                          }, null, 2)}
+                        </pre>
+                      </details>
+                    </div>
                   )}
                 </div>
               )}
