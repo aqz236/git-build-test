@@ -93,7 +93,7 @@ runs:
         # 获取当前时间
         CREATED_AT=$(date -u +'%Y-%m-%dT%H:%M:%S.%3NZ')        # 构建产物将通过前端JavaScript动态获取，简化后端逻辑
         DOWNLOAD_FILES="[]"
-        
+
         echo "📝 Release assets will be fetched dynamically by frontend JavaScript"
         echo "🔗 GitHub API endpoints:"
         echo "  - Repository: ${{ github.repository }}"
