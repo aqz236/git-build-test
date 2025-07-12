@@ -3,7 +3,7 @@ name: 🚀 Build and Release from Private Repository
 on:
   push:
     branches: [main, dev]
-    tags: ["v*"]
+    tags: ['v*']
   workflow_dispatch:
   repository_dispatch:
     types: [build-trigger]
@@ -68,7 +68,7 @@ jobs:
           else
             VERSION="v$(date +'%Y.%m.%d')-${PRIVATE_COMMIT_SHORT}"
           fi
-          
+
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Version: $VERSION"
           echo "Private repo commit: $PRIVATE_COMMIT"
@@ -217,7 +217,7 @@ jobs:
             VERSION="v$(date +'%Y.%m.%d')-${PRIVATE_COMMIT_SHORT}"
             IS_PRERELEASE=true
           fi
-          
+
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "is-prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
           echo "Version: $VERSION"
@@ -341,7 +341,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.version.outputs.version }}
-          name: "Release ${{ steps.version.outputs.version }}"
+          name: 'Release ${{ steps.version.outputs.version }}'
           body: ${{ steps.changelog.outputs.changelog }}
           prerelease: ${{ steps.version.outputs.is-prerelease }}
           files: release-assets/*
