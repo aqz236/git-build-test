@@ -7,7 +7,6 @@
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://unpkg.com/embla-carousel/embla-carousel.umd.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link
       rel="stylesheet"
@@ -56,18 +55,6 @@
       }
       .copy-button:hover {
         background-color: #374151;
-      }
-
-      /* Embla Carousel Styles */
-      .embla {
-        overflow: hidden;
-      }
-      .embla__container {
-        display: flex;
-      }
-      .embla__slide {
-        flex: 0 0 100%;
-        min-width: 0;
       }
 
       /* Branch Navigation Styles */
@@ -123,6 +110,18 @@
       /* Content area animations */
       .content-transition {
         transition: all 0.3s ease;
+        animation: fadeInUp 0.4s ease-out;
+      }
+
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(15px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
       }
 
       .fade-enter {
@@ -173,8 +172,6 @@
         const [copied, setCopied] = useState(false);
         const [branches, setBranches] = useState([]);
         const [branchData, setBranchData] = useState({});
-        const emblaRef = useRef();
-        const emblaApi = useRef();
 
         const formatDate = (dateString) => {
           const date = new Date(dateString);
@@ -298,41 +295,9 @@
           }
         }, []);
 
-        // 初始化 Embla Carousel (在分支数据设置后)
-        useEffect(() => {
-          if (
-            branches.length > 0 &&
-            emblaRef.current &&
-            window.EmblaCarousel &&
-            !emblaApi.current
-          ) {
-            emblaApi.current = window.EmblaCarousel(emblaRef.current, {
-              align: "start",
-              skipSnaps: false,
-            });
-
-            emblaApi.current.on("select", () => {
-              const selectedIndex = emblaApi.current.selectedScrollSnap();
-              if (branches[selectedIndex]) {
-                setActiveBranch(branches[selectedIndex]);
-              }
-            });
-          }
-
-          return () => {
-            if (emblaApi.current) {
-              emblaApi.current.destroy();
-              emblaApi.current = null;
-            }
-          };
-        }, [branches]);
-
-        // 当点击分支导航时，同步轮播图
-        const handleBranchClick = (branchName, index) => {
+        // 当点击分支导航时切换分支
+        const handleBranchClick = (branchName) => {
           setActiveBranch(branchName);
-          if (emblaApi.current) {
-            emblaApi.current.scrollTo(index);
-          }
         };
 
         return (
@@ -536,9 +501,7 @@
                           {branches.map((branchName, index) => (
                             <button
                               key={branchName}
-                              onClick={() =>
-                                handleBranchClick(branchName, index)
-                              }
+                              onClick={() => handleBranchClick(branchName)}
                               className={`branch-tab ${
                                 activeBranch === branchName ? "active" : ""
                               }`}
@@ -552,38 +515,30 @@
                           ))}
                         </div>
 
-                        {/* Embla轮播容器 */}
-                        <div className="embla" ref={emblaRef}>
-                          <div className="embla__container">
-                            {branches.map((branchName) => (
-                              <div key={branchName} className="embla__slide">
-                                <div className="content-transition p-6">
-                                  <div className="space-y-3">
-                                    {branchData[branchName]?.map(
-                                      (commit, index) =>
-                                        renderCommit(commit, index)
-                                    )}
-                                  </div>
+                        {/* 分支内容展示 */}
+                        {activeBranch && branchData[activeBranch] && (
+                          <div className="content-transition p-6">
+                            <div className="space-y-3">
+                              {branchData[activeBranch].map((commit, index) =>
+                                renderCommit(commit, index)
+                              )}
+                            </div>
 
-                                  {/* 分支统计信息 */}
-                                  <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                                    <div className="flex items-center justify-between text-sm text-gray-600">
-                                      <span className="flex items-center">
-                                        <i className="fas fa-code-branch mr-2"></i>
-                                        {branchName} 分支
-                                      </span>
-                                      <span className="flex items-center">
-                                        <i className="fas fa-list-ol mr-2"></i>
-                                        共 {branchData[branchName]?.length || 0}{" "}
-                                        个提交
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
+                            {/* 分支统计信息 */}
+                            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                              <div className="flex items-center justify-between text-sm text-gray-600">
+                                <span className="flex items-center">
+                                  <i className="fas fa-code-branch mr-2"></i>
+                                  {activeBranch} 分支
+                                </span>
+                                <span className="flex items-center">
+                                  <i className="fas fa-list-ol mr-2"></i>共{" "}
+                                  {branchData[activeBranch]?.length || 0} 个提交
+                                </span>
                               </div>
-                            ))}
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                     )}
                   </div>
