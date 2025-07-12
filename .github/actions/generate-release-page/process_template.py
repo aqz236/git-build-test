@@ -1,6 +1,17 @@
 #!/usr/bin/env python3
 import os
 import sys
+import json
+
+def escape_for_js(text):
+    """转义文本以便安全地嵌入到 JavaScript 字符串中"""
+    if not text:
+        return ''
+    # 转义反斜杠和引号
+    text = text.replace('\\', '\\\\')
+    text = text.replace('`', '\\`')
+    text = text.replace('${', '\\${')
+    return text
 
 def main():
     if len(sys.argv) != 2:
@@ -15,6 +26,22 @@ def main():
         content = f.read()
     
     # 从环境变量获取替换值
+    changelog_file = os.environ.get('REPLACE_CHANGELOG_FILE')
+    if changelog_file and os.path.exists(changelog_file):
+        with open(changelog_file, 'r', encoding='utf-8') as f:
+            changelog = escape_for_js(f.read())
+    else:
+        changelog = escape_for_js(os.environ.get('REPLACE_CHANGELOG', ''))
+    
+    download_files = os.environ.get('REPLACE_DOWNLOAD_FILES', '[]')
+    
+    # 验证 download_files 是有效的 JSON
+    try:
+        json.loads(download_files)
+    except json.JSONDecodeError:
+        print(f"Warning: Invalid JSON in DOWNLOAD_FILES: {download_files}")
+        download_files = '[]'
+    
     replacements = {
         '{{VERSION}}': os.environ.get('REPLACE_VERSION', ''),
         '{{CREATED_AT}}': os.environ.get('REPLACE_CREATED_AT', ''),
@@ -25,11 +52,11 @@ def main():
         '{{TRIGGER_BRANCH}}': os.environ.get('REPLACE_TRIGGER_BRANCH', ''),
         '{{TRIGGER_COMMIT}}': os.environ.get('REPLACE_TRIGGER_COMMIT', ''),
         '{{TRIGGER_AUTHOR}}': os.environ.get('REPLACE_TRIGGER_AUTHOR', ''),
-        '{{COMMIT_MESSAGE}}': os.environ.get('REPLACE_COMMIT_MESSAGE', ''),
+        '{{COMMIT_MESSAGE}}': escape_for_js(os.environ.get('REPLACE_COMMIT_MESSAGE', '')),
         '{{GITHUB_BASE_URL}}': os.environ.get('REPLACE_GITHUB_BASE_URL', ''),
         '{{REPO_PATH}}': os.environ.get('REPLACE_REPO_PATH', ''),
-        '{{DOWNLOAD_FILES}}': os.environ.get('REPLACE_DOWNLOAD_FILES', '[]'),
-        '{{CHANGELOG}}': '查看完整 changelog'
+        '{{DOWNLOAD_FILES}}': download_files,
+        '{{CHANGELOG}}': changelog
     }
     
     # 执行替换
@@ -41,6 +68,8 @@ def main():
         f.write(content)
     
     print("Template processing completed successfully")
+    print(f"Processed changelog length: {len(changelog)}")
+    print(f"Download files: {download_files}")
 
 if __name__ == "__main__":
     main()

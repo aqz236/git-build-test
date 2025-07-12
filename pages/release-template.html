@@ -79,7 +79,14 @@
         changelog: `{{CHANGELOG}}`,
         githubBaseUrl: "{{GITHUB_BASE_URL}}",
         repoPath: "{{REPO_PATH}}",
-        downloadFiles: JSON.parse('{{DOWNLOAD_FILES}}'), // 新增下载文件列表
+        downloadFiles: (() => {
+          try {
+            return JSON.parse("{{DOWNLOAD_FILES}}");
+          } catch (e) {
+            console.warn("Failed to parse download files:", e);
+            return [];
+          }
+        })(), // 新增下载文件列表
       };
 
       function App() {
@@ -387,24 +394,41 @@
                     </h2>
 
                     {/* Download Files List */}
-                    {releaseData.downloadFiles && releaseData.downloadFiles.length > 0 ? (
+                    {releaseData.downloadFiles &&
+                    releaseData.downloadFiles.length > 0 ? (
                       <div className="grid gap-4 mb-8">
                         {releaseData.downloadFiles.map((file, index) => {
-                          const isPlatformFile = file.name.includes('darwin') || file.name.includes('linux');
-                          const platform = file.name.includes('darwin') ? 'macOS' : 
-                                         file.name.includes('linux') ? 'Linux' : 'Other';
-                          const platformIcon = file.name.includes('darwin') ? 'fab fa-apple' :
-                                             file.name.includes('linux') ? 'fab fa-linux' : 'fas fa-file';
-                          
+                          const isPlatformFile =
+                            file.name.includes("darwin") ||
+                            file.name.includes("linux");
+                          const platform = file.name.includes("darwin")
+                            ? "macOS"
+                            : file.name.includes("linux")
+                            ? "Linux"
+                            : "Other";
+                          const platformIcon = file.name.includes("darwin")
+                            ? "fab fa-apple"
+                            : file.name.includes("linux")
+                            ? "fab fa-linux"
+                            : "fas fa-file";
+
                           return (
-                            <div key={index} className="bg-gray-50 rounded-lg p-6 border border-gray-200 hover:border-green-300 transition-colors">
+                            <div
+                              key={index}
+                              className="bg-gray-50 rounded-lg p-6 border border-gray-200 hover:border-green-300 transition-colors"
+                            >
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center flex-1">
                                   <div className="mr-4">
-                                    <i className={`${platformIcon} text-2xl ${
-                                      file.name.includes('darwin') ? 'text-gray-600' :
-                                      file.name.includes('linux') ? 'text-blue-600' : 'text-gray-500'
-                                    }`}></i>
+                                    <i
+                                      className={`${platformIcon} text-2xl ${
+                                        file.name.includes("darwin")
+                                          ? "text-gray-600"
+                                          : file.name.includes("linux")
+                                          ? "text-blue-600"
+                                          : "text-gray-500"
+                                      }`}
+                                    ></i>
                                   </div>
                                   <div className="flex-1">
                                     <h3 className="font-semibold text-gray-800 mb-1">
@@ -419,11 +443,14 @@
                                       )}
                                       <span className="flex items-center">
                                         <i className="fas fa-file-archive mr-1"></i>
-                                        {(file.size / 1024 / 1024).toFixed(1)} MB
+                                        {(file.size / 1024 / 1024).toFixed(1)}{" "}
+                                        MB
                                       </span>
                                       <span className="flex items-center">
                                         <i className="fas fa-clock mr-1"></i>
-                                        {new Date(file.updated_at).toLocaleDateString('zh-CN')}
+                                        {new Date(
+                                          file.updated_at
+                                        ).toLocaleDateString("zh-CN")}
                                       </span>
                                     </div>
                                   </div>
@@ -450,8 +477,10 @@
 
                     {/* Download Instructions */}
                     <div className="border-t border-gray-200 pt-8">
-                      <h3 className="text-xl font-bold text-gray-800 mb-6">使用说明</h3>
-                      
+                      <h3 className="text-xl font-bold text-gray-800 mb-6">
+                        使用说明
+                      </h3>
+
                       <div className="grid md:grid-cols-2 gap-8">
                         {/* macOS */}
                         <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-6">
@@ -576,8 +605,6 @@
                 </div>
               )}
             </main>
-
-
           </div>
         );
       }
