@@ -125,7 +125,7 @@
               }
               currentSection = line
                 .replace(/^#+\s*/, "")
-                .replace(/📝|📋|🔧|⚠️|📦|🔓/g, "")
+                .replace(/📝|📋|🔧|⚠️|📦|🔓|� /g, "")
                 .trim();
               currentContent = [];
             } else if (currentSection) {
@@ -136,6 +136,9 @@
           if (currentSection) {
             sections[currentSection] = currentContent.join("\n");
           }
+
+          // 调试：输出所有解析到的节
+          console.log("Parsed changelog sections:", Object.keys(sections));
 
           return sections;
         };

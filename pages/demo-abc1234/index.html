@@ -152,7 +152,7 @@
               }
               currentSection = line
                 .replace(/^#+\s*/, "")
-                .replace(/📝|📋|🔧|⚠️|📦|🔓/g, "")
+                .replace(/📝|📋|🔧|⚠️|📦|🔓|� /g, "")
                 .trim();
               currentContent = [];
             } else if (currentSection) {
