@@ -28,6 +28,7 @@ def main():
         '{{COMMIT_MESSAGE}}': os.environ.get('REPLACE_COMMIT_MESSAGE', ''),
         '{{GITHUB_BASE_URL}}': os.environ.get('REPLACE_GITHUB_BASE_URL', ''),
         '{{REPO_PATH}}': os.environ.get('REPLACE_REPO_PATH', ''),
+        '{{DOWNLOAD_FILES}}': os.environ.get('REPLACE_DOWNLOAD_FILES', '[]'),
         '{{CHANGELOG}}': '查看完整 changelog'
     }
     

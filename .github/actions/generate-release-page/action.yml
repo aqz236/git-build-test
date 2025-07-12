@@ -84,6 +84,33 @@ runs:
         # 获取当前时间
         CREATED_AT=$(date -u +'%Y-%m-%dT%H:%M:%S.%3NZ')
 
+        # 获取关联的 Release 下载文件信息
+        DOWNLOAD_FILES="[]"
+        
+        # 查找与当前版本匹配的 Release
+        if [[ -n "$GITHUB_TOKEN" ]]; then
+          echo "Fetching release assets for version: ${{ inputs.version }}"
+          
+          # 使用 GitHub API 获取 Release 信息
+          RELEASE_INFO=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ inputs.version }}" 2>/dev/null)
+          
+          if [[ $? -eq 0 ]] && echo "$RELEASE_INFO" | jq -e '.assets' >/dev/null 2>&1; then
+            DOWNLOAD_FILES=$(echo "$RELEASE_INFO" | jq -c '.assets | map({
+              name: .name,
+              size: .size,
+              browser_download_url: .browser_download_url,
+              updated_at: .updated_at
+            })')
+            echo "Found $(echo "$DOWNLOAD_FILES" | jq 'length') download files"
+          else
+            echo "No release found for version ${{ inputs.version }} or unable to fetch assets"
+          fi
+        else
+          echo "Warning: GITHUB_TOKEN not available, cannot fetch release assets"
+        fi
+
         # 复制并处理模板文件
         cp pages/release-template.html "$RELEASE_DIR/index.html"
 
@@ -100,6 +127,7 @@ runs:
         export REPLACE_COMMIT_MESSAGE="$COMMIT_MESSAGE"
         export REPLACE_GITHUB_BASE_URL="$GITHUB_BASE_URL"
         export REPLACE_REPO_PATH="$REPO_PATH"
+        export REPLACE_DOWNLOAD_FILES="$DOWNLOAD_FILES"
 
         # 使用外部 Python 脚本处理模板替换
         python3 ./.github/actions/generate-release-page/process_template.py "$RELEASE_DIR"
