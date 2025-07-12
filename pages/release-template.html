@@ -304,116 +304,81 @@
           try {
             console.log("🔍 Fetching release assets...");
             console.log("Repository:", releaseData.triggerRepo);
-            console.log("Version:", releaseData.version);
+            console.log("Tag Name:", releaseData.version);
             console.log("Release Hash:", releaseData.releaseHash);
 
-            // 方法1: 通过版本号获取release
-            let releaseInfo = null;
+            // 直接通过tag名称获取release（最可靠的方法）
+            console.log(`📦 Fetching release by tag: ${releaseData.version}`);
+            const versionResponse = await fetch(
+              `${apiBase}/releases/tags/${releaseData.version}`
+            );
+            
+            if (versionResponse.ok) {
+              const releaseInfo = await versionResponse.json();
+              console.log("✅ Found release by tag:", releaseData.version);
+              console.log("🎯 Release target commit:", releaseInfo.target_commitish);
+              
+              if (releaseInfo.assets && releaseInfo.assets.length > 0) {
+                const assets = releaseInfo.assets.map((asset) => ({
+                  name: asset.name,
+                  size: asset.size,
+                  browser_download_url: asset.browser_download_url,
+                  download_count: asset.download_count,
+                  content_type: asset.content_type,
+                  updated_at: asset.updated_at,
+                }));
 
-            try {
-              const versionResponse = await fetch(
-                `${apiBase}/releases/tags/${releaseData.version}`
-              );
-              if (versionResponse.ok) {
-                releaseInfo = await versionResponse.json();
+                setDownloadFiles(assets);
                 console.log(
-                  "✅ Found release by version:",
-                  releaseData.version
+                  `✅ Successfully loaded ${assets.length} assets:`,
+                  assets.map((a) => a.name)
                 );
               } else {
-                console.log(
-                  "❌ Release not found by version:",
-                  releaseData.version
-                );
+                console.log("⚠️ Release found but no assets available");
+                setDownloadFiles([]);
               }
-            } catch (e) {
-              console.log("❌ Error fetching by version:", e.message);
-            }
-
-            // 方法2: 如果版本号找不到，搜索所有releases找匹配的commit
-            if (
-              !releaseInfo ||
-              !releaseInfo.assets ||
-              releaseInfo.assets.length === 0
-            ) {
-              console.log("🔍 Searching all releases for matching commit...");
-
-              try {
-                const allReleasesResponse = await fetch(
-                  `${apiBase}/releases?per_page=50`
-                );
-                if (allReleasesResponse.ok) {
-                  const allReleases = await allReleasesResponse.json();
-                  console.log(`📋 Found ${allReleases.length} total releases`);
-
-                  // 查找target_commitish匹配的release
-                  const matchingRelease = allReleases.find(
-                    (release) =>
-                      release.target_commitish === releaseData.releaseHash ||
-                      release.target_commitish ===
-                        releaseData.releaseHashShort ||
-                      release.target_commitish?.startsWith(
-                        releaseData.releaseHashShort
-                      )
-                  );
-
-                  if (matchingRelease && matchingRelease.assets?.length > 0) {
-                    releaseInfo = matchingRelease;
-                    console.log(
-                      "🎯 Found matching release by commit:",
-                      matchingRelease.tag_name
-                    );
-                  }
-                }
-              } catch (e) {
-                console.log("❌ Error searching releases:", e.message);
-              }
-            }
-
-            // 方法3: 如果还是没找到，使用最新release
-            if (
-              !releaseInfo ||
-              !releaseInfo.assets ||
-              releaseInfo.assets.length === 0
-            ) {
-              console.log("📦 Trying latest release as fallback...");
-
-              try {
-                const latestResponse = await fetch(
-                  `${apiBase}/releases/latest`
-                );
-                if (latestResponse.ok) {
-                  releaseInfo = await latestResponse.json();
-                  console.log("📦 Using latest release:", releaseInfo.tag_name);
-                }
-              } catch (e) {
-                console.log("❌ Error fetching latest release:", e.message);
-              }
-            }
-
-            // 处理获取到的assets
-            if (
-              releaseInfo &&
-              releaseInfo.assets &&
-              releaseInfo.assets.length > 0
-            ) {
-              const assets = releaseInfo.assets.map((asset) => ({
-                name: asset.name,
-                size: asset.size,
-                browser_download_url: asset.browser_download_url,
-                download_count: asset.download_count,
-                content_type: asset.content_type,
-                updated_at: asset.updated_at,
-              }));
-
-              setDownloadFiles(assets);
-              console.log(
-                `✅ Successfully loaded ${assets.length} assets:`,
-                assets.map((a) => a.name)
-              );
             } else {
-              console.log("⚠️ No assets found");
-              setDownloadFiles([]);
+              console.log("❌ Release not found by tag:", releaseData.version);
+              
+              // Fallback: 搜索所有releases找匹配的commit
+              console.log("� Searching all releases for matching commit...");
+              const allReleasesResponse = await fetch(
+                `${apiBase}/releases?per_page=50`
+              );
+              
+              if (allReleasesResponse.ok) {
+                const allReleases = await allReleasesResponse.json();
+                console.log(`� Found ${allReleases.length} total releases`);
+
+                const matchingRelease = allReleases.find(
+                  (release) =>
+                    release.target_commitish === releaseData.releaseHash ||
+                    release.target_commitish === releaseData.releaseHashShort ||
+                    release.target_commitish?.startsWith(releaseData.releaseHashShort)
+                );
+
+                if (matchingRelease && matchingRelease.assets?.length > 0) {
+                  const assets = matchingRelease.assets.map((asset) => ({
+                    name: asset.name,
+                    size: asset.size,
+                    browser_download_url: asset.browser_download_url,
+                    download_count: asset.download_count,
+                    content_type: asset.content_type,
+                    updated_at: asset.updated_at,
+                  }));
+
+                  setDownloadFiles(assets);
+                  console.log(
+                    `🎯 Found matching release by commit: ${matchingRelease.tag_name}`,
+                    assets.map((a) => a.name)
+                  );
+                } else {
+                  console.log("❌ No matching release found by commit");
+                  setDownloadFiles([]);
+                }
+              } else {
+                throw new Error(`HTTP ${allReleasesResponse.status}: ${allReleasesResponse.statusText}`);
+              }
             }
           } catch (error) {
             console.error("❌ Error fetching release assets:", error);

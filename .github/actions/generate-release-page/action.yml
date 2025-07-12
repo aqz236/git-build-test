@@ -63,6 +63,10 @@ runs:
         TRIGGER_COMMIT="${{ github.sha }}"
         TRIGGER_AUTHOR="${{ github.actor }}"
 
+        # 获取release hash信息
+        RELEASE_HASH="${{ github.sha }}"
+        RELEASE_HASH_SHORT="${RELEASE_HASH:0:7}"
+
         # 获取提交消息（转义特殊字符）
         COMMIT_MESSAGE=""
         if [[ "${{ github.event_name }}" == "push" ]]; then
@@ -73,29 +77,27 @@ runs:
         # 转义特殊字符以避免 sed 错误
         COMMIT_MESSAGE=$(echo "$COMMIT_MESSAGE" | sed 's/[\/&]/\\&/g' | tr '\n' ' ' | tr '\r' ' ')
 
-        # 创建发布目录 - 使用release的唯一hash确保每次构建的唯一性
-        # 使用触发仓库的commit hash作为页面路径，这样可以通过API准确获取对应的release数据
-        RELEASE_HASH="${{ github.sha }}"
-        RELEASE_HASH_SHORT="${RELEASE_HASH:0:7}"
-        RELEASE_DIR="pages/${RELEASE_HASH}"
+        # 创建发布目录 - 使用版本号（tag名称）作为路径，便于API获取
+        # 清理版本号中的特殊字符，用于文件夹名
+        VERSION_SAFE=$(echo "${{ inputs.version }}" | sed 's/[^a-zA-Z0-9.-]/_/g')
+        RELEASE_DIR="pages/${VERSION_SAFE}"
         mkdir -p "$RELEASE_DIR"
 
         echo "Creating release page in: $RELEASE_DIR"
-        echo "Version: ${{ inputs.version }}"
+        echo "Version (tag): ${{ inputs.version }}"
+        echo "Version (safe): $VERSION_SAFE"
         echo "Release Hash: $RELEASE_HASH"
         echo "Release Hash (short): $RELEASE_HASH_SHORT"
         echo "Private Commit: $CURRENT_COMMIT"
 
         # 获取当前时间
-        CREATED_AT=$(date -u +'%Y-%m-%dT%H:%M:%S.%3NZ')
-
-        # 构建产物将通过前端JavaScript动态获取，简化后端逻辑
+        CREATED_AT=$(date -u +'%Y-%m-%dT%H:%M:%S.%3NZ')        # 构建产物将通过前端JavaScript动态获取，简化后端逻辑
         DOWNLOAD_FILES="[]"
-
+        
         echo "📝 Release assets will be fetched dynamically by frontend JavaScript"
         echo "🔗 GitHub API endpoints:"
         echo "  - Repository: ${{ github.repository }}"
-        echo "  - Version: ${{ inputs.version }}"
+        echo "  - Version (tag): ${{ inputs.version }}"
         echo "  - Release Hash: $RELEASE_HASH"
         echo "  - API Base: https://api.github.com/repos/${{ github.repository }}"
 
@@ -193,12 +195,12 @@ runs:
           mv pages/releases.json.tmp pages/releases.json
         fi
 
-        # 输出页面 URL - 使用release hash作为路径
+        # 输出页面 URL - 使用版本号（tag名称）作为路径
         REPO_NAME=$(basename "${{ github.repository }}")
         if [[ -n "${{ github.repository }}" ]]; then
-          PAGE_URL="https://${{ github.repository_owner }}.github.io/${REPO_NAME}/${RELEASE_HASH}/"
+          PAGE_URL="https://${{ github.repository_owner }}.github.io/${REPO_NAME}/${VERSION_SAFE}/"
         else
-          PAGE_URL="/${RELEASE_HASH}/"
+          PAGE_URL="/${VERSION_SAFE}/"
         fi
 
         echo "page-url=$PAGE_URL" >> $GITHUB_OUTPUT
