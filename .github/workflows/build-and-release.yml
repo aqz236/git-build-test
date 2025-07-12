@@ -40,7 +40,7 @@ jobs:
             # 已经是 owner/repo 格式
             REPO_PATH=$REPO_URL
           fi
-          
+
           echo "Cloning repository: $REPO_PATH"
           git clone https://${{ secrets.SELF_GITHUB_SECRETS }}@github.com/${REPO_PATH}.git .
           git fetch --all --tags
@@ -49,13 +49,18 @@ jobs:
         id: version
         shell: bash
         run: |
+          # 获取私有仓库的当前提交信息
+          PRIVATE_COMMIT=$(git rev-parse HEAD)
+          PRIVATE_COMMIT_SHORT=$(git rev-parse --short HEAD)
+
           if [[ $GITHUB_REF == refs/tags/* ]]; then
             VERSION=${GITHUB_REF#refs/tags/}
           else
-            VERSION="v$(date +'%Y.%m.%d')-${GITHUB_SHA::7}"
+            VERSION="v$(date +'%Y.%m.%d')-${PRIVATE_COMMIT_SHORT}"
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Version: $VERSION"
+          echo "Private repo commit: $PRIVATE_COMMIT"
 
       - name: 🟢 Setup Bun
         uses: oven-sh/setup-bun@v1
@@ -173,7 +178,7 @@ jobs:
             # 已经是 owner/repo 格式
             REPO_PATH=$REPO_URL
           fi
-          
+
           echo "Cloning repository: $REPO_PATH"
           git clone https://${{ secrets.SELF_GITHUB_SECRETS }}@github.com/${REPO_PATH}.git .
           git fetch --all --tags
@@ -181,30 +186,54 @@ jobs:
       - name: 🏷️ Get version
         id: version
         run: |
+          # 获取私有仓库的当前提交信息
+          PRIVATE_COMMIT=$(git rev-parse HEAD)
+          PRIVATE_COMMIT_SHORT=$(git rev-parse --short HEAD)
+
           if [[ $GITHUB_REF == refs/tags/* ]]; then
             VERSION=${GITHUB_REF#refs/tags/}
             IS_PRERELEASE=false
           else
-            VERSION="v$(date +'%Y.%m.%d')-${GITHUB_SHA::7}"
+            VERSION="v$(date +'%Y.%m.%d')-${PRIVATE_COMMIT_SHORT}"
             IS_PRERELEASE=true
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "is-prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+          echo "Private repo commit: $PRIVATE_COMMIT"
 
       - name: 📋 Generate changelog
         id: changelog
         run: |
           echo "Generating changelog..."
 
+          # 获取当前私有仓库的最新提交信息
+          CURRENT_COMMIT=$(git rev-parse HEAD)
+          CURRENT_COMMIT_SHORT=$(git rev-parse --short HEAD)
+          CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
           # 获取最近的标签
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
 
           if [[ -z "$LAST_TAG" ]]; then
             # 如果没有标签，获取最近10个提交
-            COMMITS=$(git log --oneline -10 --pretty=format:"- %s (%h)")
+            echo "No previous tags found, showing recent commits..."
+            COMMITS=$(git log --oneline -10 --pretty=format:"- %s (%h)" 2>/dev/null || echo "- 初始化项目")
           else
             # 获取自上次标签以来的提交
-            COMMITS=$(git log ${LAST_TAG}..HEAD --oneline --pretty=format:"- %s (%h)")
+            echo "Getting commits since last tag: $LAST_TAG"
+            COMMITS=$(git log ${LAST_TAG}..HEAD --oneline --pretty=format:"- %s (%h)" 2>/dev/null || git log --oneline -5 --pretty=format:"- %s (%h)")
+            
+            # 如果自上次标签以来没有新提交，显示最近的几个提交
+            if [[ -z "$COMMITS" ]]; then
+              echo "No new commits since last tag, showing recent commits..."
+              COMMITS=$(git log --oneline -5 --pretty=format:"- %s (%h)")
+            fi
+          fi
+
+          # 如果仍然没有提交信息，使用默认信息
+          if [[ -z "$COMMITS" ]]; then
+            COMMITS="- 构建和发布应用程序 ($CURRENT_COMMIT_SHORT)"
           fi
 
           # 生成变更日志
@@ -212,8 +241,9 @@ jobs:
 
           ### 📅 发布信息
           - **发布时间**: $(date -u +'%Y-%m-%d %H:%M:%S UTC')
-          - **提交哈希**: \`${GITHUB_SHA}\`
-          - **分支**: \`${GITHUB_REF_NAME}\`
+          - **提交哈希**: \`${CURRENT_COMMIT}\`
+          - **分支**: \`${CURRENT_BRANCH}\`
+          - **私有仓库**: ${{ secrets.REPOSITORY_URL }}
 
           ### 📝 本次更新内容
           ${COMMITS}
@@ -232,7 +262,7 @@ jobs:
           1. 下载可执行文件
           2. 打开终端，进入下载目录
           3. 执行 \`chmod +x app-*-darwin-x64 && ./app-*-darwin-x64\`
-          4. 如果仍提示安全问题，请在系统偏好设置 → 安全性与隐私 → 通用中点击"仍要打开"
+          4. 如果仍提示安全问题，请在系统偏好设置 → 安全性与隐私 → 通用中点击\"仍要打开\"
           5. 或者运行: \`xattr -d com.apple.quarantine ./app-*-darwin-x64\` 然后再执行"
 
           # 保存到环境变量（处理多行）
