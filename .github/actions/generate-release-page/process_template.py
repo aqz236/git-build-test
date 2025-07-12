@@ -35,12 +35,15 @@ def main():
     
     download_files = os.environ.get('REPLACE_DOWNLOAD_FILES', '[]')
     
-    # 验证 download_files 是有效的 JSON
+    # 验证 download_files 是有效的 JSON，并进行安全转义
     try:
-        json.loads(download_files)
+        # 先解析 JSON 确保有效性
+        parsed_files = json.loads(download_files)
+        # 重新序列化，并转义双引号和反斜杠
+        download_files_safe = json.dumps(parsed_files).replace('\\', '\\\\').replace('"', '\\"')
     except json.JSONDecodeError:
         print(f"Warning: Invalid JSON in DOWNLOAD_FILES: {download_files}")
-        download_files = '[]'
+        download_files_safe = '[]'
     
     replacements = {
         '{{VERSION}}': os.environ.get('REPLACE_VERSION', ''),
@@ -55,7 +58,7 @@ def main():
         '{{COMMIT_MESSAGE}}': escape_for_js(os.environ.get('REPLACE_COMMIT_MESSAGE', '')),
         '{{GITHUB_BASE_URL}}': os.environ.get('REPLACE_GITHUB_BASE_URL', ''),
         '{{REPO_PATH}}': os.environ.get('REPLACE_REPO_PATH', ''),
-        '{{DOWNLOAD_FILES}}': download_files,
+        '{{DOWNLOAD_FILES}}': download_files_safe,
         '{{CHANGELOG}}': changelog
     }
     
