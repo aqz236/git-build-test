@@ -165,7 +165,7 @@ jobs:
       - name: 🔒 Compress and encrypt build artifact
         shell: bash
         run: |
-          # 安装 7z（如果需要）
+          # 安装 7z
           if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
             sudo apt-get update && sudo apt-get install -y p7zip-full
           fi
