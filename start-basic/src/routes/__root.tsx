@@ -9,8 +9,8 @@ import {
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { Github, Home as HomeIcon, Settings } from "lucide-react";
 import * as React from "react";
-import { DefaultCatchBoundary } from "~/components/DefaultCatchBoundary";
-import { NotFound } from "~/components/NotFound";
+import { DefaultCatchBoundary } from "~/components/github_releases_tags/DefaultCatchBoundary";
+import { NotFound } from "~/components/github_releases_tags/NotFound";
 import appCss from "~/styles/app.css?url";
 import { seo } from "~/utils/seo";
 
@@ -119,7 +119,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
                     首页
                   </Link>
                   <Link
-                    to="/github"
+                    to="/github_releases_tags"
                     className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-gray-100"
                     activeProps={{
                       className: "bg-blue-50 text-blue-600 hover:bg-blue-100",

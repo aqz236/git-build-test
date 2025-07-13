@@ -1,5 +1,5 @@
 import { Trash2 } from "lucide-react";
-import { useGitHubStore } from "~/utils/github-store";
+import { useGitHubStore } from "~/utils/github_releases_tags/github-store";
 
 export function BulkActions() {
   const { selectedIds, activeTab, deleteSelectedReleases } = useGitHubStore();

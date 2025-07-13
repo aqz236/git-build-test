@@ -1,4 +1,4 @@
-import { useGitHubStore } from "~/utils/github-store";
+import { useGitHubStore } from "~/utils/github_releases_tags/github-store";
 import { BulkActions } from "./BulkActions";
 import { Pagination } from "./Pagination";
 import { ReleasesTable } from "./ReleasesTable";

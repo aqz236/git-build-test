@@ -20,31 +20,31 @@ function TagDownloadsModal({
   // ESC键关闭模态框
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && isOpen) {
+      if (event.key === "Escape" && isOpen) {
         onClose();
       }
     };
 
     if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
+      document.addEventListener("keydown", handleKeyDown);
       // 防止背景滚动
-      document.body.style.overflow = 'hidden';
+      document.body.style.overflow = "hidden";
     }
 
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'unset';
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "unset";
     };
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
   return (
-    <div 
+    <div
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
       onClick={onClose}
     >
-      <div 
+      <div
         className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4"
         onClick={(e) => e.stopPropagation()}
       >

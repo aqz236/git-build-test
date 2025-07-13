@@ -21,20 +21,20 @@ export function MarkdownViewer({
   // ESC键关闭模态框
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && isOpen) {
+      if (event.key === "Escape" && isOpen) {
         setIsOpen(false);
       }
     };
 
     if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
+      document.addEventListener("keydown", handleKeyDown);
       // 防止背景滚动
-      document.body.style.overflow = 'hidden';
+      document.body.style.overflow = "hidden";
     }
 
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'unset';
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "unset";
     };
   }, [isOpen]);
 
@@ -64,11 +64,11 @@ export function MarkdownViewer({
       )}
 
       {isOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
           onClick={() => setIsOpen(false)}
         >
-          <div 
+          <div
             className="bg-white rounded-lg shadow-xl max-w-4xl max-h-[80vh] w-full flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >

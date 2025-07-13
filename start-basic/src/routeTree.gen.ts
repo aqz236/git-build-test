@@ -9,55 +9,49 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as GithubRouteImport } from './routes/github'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as Github_releases_tagsIndexRouteImport } from './routes/github_releases_tags/index'
 
-const GithubRoute = GithubRouteImport.update({
-  id: '/github',
-  path: '/github',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const Github_releases_tagsIndexRoute =
+  Github_releases_tagsIndexRouteImport.update({
+    id: '/github_releases_tags/',
+    path: '/github_releases_tags/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/github': typeof GithubRoute
+  '/github_releases_tags': typeof Github_releases_tagsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/github': typeof GithubRoute
+  '/github_releases_tags': typeof Github_releases_tagsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/github': typeof GithubRoute
+  '/github_releases_tags/': typeof Github_releases_tagsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/github'
+  fullPaths: '/' | '/github_releases_tags'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/github'
-  id: '__root__' | '/' | '/github'
+  to: '/' | '/github_releases_tags'
+  id: '__root__' | '/' | '/github_releases_tags/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  GithubRoute: typeof GithubRoute
+  Github_releases_tagsIndexRoute: typeof Github_releases_tagsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/github': {
-      id: '/github'
-      path: '/github'
-      fullPath: '/github'
-      preLoaderRoute: typeof GithubRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
@@ -65,12 +59,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/github_releases_tags/': {
+      id: '/github_releases_tags/'
+      path: '/github_releases_tags'
+      fullPath: '/github_releases_tags'
+      preLoaderRoute: typeof Github_releases_tagsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  GithubRoute: GithubRoute,
+  Github_releases_tagsIndexRoute: Github_releases_tagsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -6,8 +6,8 @@ import {
 } from "@tanstack/react-table";
 import { Check, Copy, ExternalLink, GitBranch } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { GitHubTag } from "~/utils/github";
-import { useGitHubStore } from "~/utils/github-store";
+import type { GitHubTag } from "~/utils/github_releases_tags/github";
+import { useGitHubStore } from "~/utils/github_releases_tags/github-store";
 import { MarkdownViewer } from "./MarkdownViewer";
 import { TagDownloadButton } from "./TagDownloadButton";
 

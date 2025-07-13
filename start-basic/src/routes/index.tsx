@@ -1,9 +1,9 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
-import { Github, Home as HomeIcon, Settings, Zap } from 'lucide-react'
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Github, Home as HomeIcon, Settings, Zap } from "lucide-react";
 
-export const Route = createFileRoute('/')({
+export const Route = createFileRoute("/")({
   component: Home,
-})
+});
 
 function Home() {
   return (
@@ -24,7 +24,7 @@ function Home() {
           </p>
           <div className="flex justify-center gap-4">
             <Link
-              to="/github"
+              to="/github_releases_tags"
               className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
             >
               <Github className="w-5 h-5" />
@@ -47,10 +47,11 @@ function Home() {
               GitHub 仓库管理
             </h3>
             <p className="text-gray-600 mb-6">
-              统一管理 GitHub 仓库的 releases 和 tags，支持批量操作、搜索过滤和构建产物下载
+              统一管理 GitHub 仓库的 releases 和
+              tags，支持批量操作、搜索过滤和构建产物下载
             </p>
             <Link
-              to="/github"
+              to="/github_releases_tags"
               className="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium"
             >
               立即体验 →
@@ -150,5 +151,5 @@ function Home() {
         </div>
       </div>
     </div>
-  )
+  );
 }

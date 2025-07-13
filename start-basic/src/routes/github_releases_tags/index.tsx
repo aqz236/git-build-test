@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { GitHubManager } from "~/components/GitHubManager";
+import { GitHubManager } from "~/components/github_releases_tags/GitHubManager";
 
-export const Route = createFileRoute("/github")({
+export const Route = createFileRoute("/github_releases_tags/")({
   component: GitHubManagerPage,
 });
 

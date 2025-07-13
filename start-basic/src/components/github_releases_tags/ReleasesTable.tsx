@@ -6,8 +6,8 @@ import {
 } from "@tanstack/react-table";
 import { Calendar, ExternalLink, Tag } from "lucide-react";
 import { useEffect } from "react";
-import type { GitHubRelease } from "~/utils/github";
-import { useGitHubStore } from "~/utils/github-store";
+import type { GitHubRelease } from "~/utils/github_releases_tags/github";
+import { useGitHubStore } from "~/utils/github_releases_tags/github-store";
 import { AssetsButton } from "./AssetsButton";
 import { MarkdownViewer } from "./MarkdownViewer";
 
