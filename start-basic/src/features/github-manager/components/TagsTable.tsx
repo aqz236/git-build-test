@@ -26,6 +26,7 @@ export function TagsTable() {
     fetchTags,
     debouncedSearchKeyword,
     clearCache,
+    forceRefreshTags,
   } = useGitHubStore();
 
   const [copiedSha, setCopiedSha] = useState<string | null>(null);
@@ -58,9 +59,8 @@ export function TagsTable() {
 
     try {
       await deleteTag(confirmDelete);
-      // 清除缓存并重新获取数据
-      clearCache();
-      await fetchTags();
+      // 强制刷新数据，绕过缓存
+      await forceRefreshTags();
     } catch (error) {
       console.error("删除标签失败:", error);
     } finally {

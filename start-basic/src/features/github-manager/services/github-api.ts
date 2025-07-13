@@ -3,6 +3,14 @@ import { Octokit } from "@octokit/rest";
 // 创建GitHub API客户端
 export const octokit = new Octokit({
   auth: import.meta.env.VITE_GITHUB_TOKEN,
+  // 添加缓存控制头，防止浏览器缓存
+  request: {
+    headers: {
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+      Pragma: "no-cache",
+      Expires: "0",
+    },
+  },
 });
 
 // GitHub配置
@@ -52,6 +60,10 @@ export async function getReleases(page = 1, perPage = 10) {
     repo: GITHUB_CONFIG.repo,
     page,
     per_page: perPage,
+    // 添加时间戳防止缓存
+    headers: {
+      "If-None-Match": "",
+    },
   });
 
   return {
@@ -68,6 +80,10 @@ export async function getTags(page = 1, perPage = 10) {
     repo: GITHUB_CONFIG.repo,
     page,
     per_page: perPage,
+    // 添加时间戳防止缓存
+    headers: {
+      "If-None-Match": "",
+    },
   });
 
   return {

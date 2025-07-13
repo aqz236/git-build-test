@@ -61,6 +61,7 @@ src/
 ## 重构前后对比
 
 ### 重构前（技术分层）
+
 ```
 src/
 ├── components/
@@ -75,6 +76,7 @@ src/
 ```
 
 ### 重构后（功能模块）
+
 ```
 src/
 ├── features/
@@ -91,26 +93,31 @@ src/
 ## 重构优势
 
 ### 1. **高内聚**
+
 - 每个功能模块的所有相关代码都在一个目录下
 - 修改某个功能时，只需要在对应的feature目录下操作
 - 代码职责边界清晰
 
 ### 2. **低耦合**
+
 - 功能模块之间通过清晰的接口交互
 - shared目录存放公共代码，避免重复
 - 模块之间的依赖关系明确
 
 ### 3. **易维护**
+
 - 查找代码更容易：想修改GitHub管理器的某个功能，直接去`features/github-manager`
 - 新增功能简单：在`features`下创建新目录即可
 - 删除功能干净：删除整个feature目录即可
 
 ### 4. **易扩展**
+
 - 添加新功能模块：在`features`下创建新目录
 - 每个模块可以有自己的组件、hooks、服务、状态管理
 - 支持模块级别的懒加载
 
 ### 5. **团队协作友好**
+
 - 不同开发者可以专注于不同的feature模块
 - 减少代码冲突的可能性
 - 代码审查更容易聚焦
@@ -118,24 +125,27 @@ src/
 ## 导入路径规范
 
 ### 功能模块内部导入
+
 ```typescript
 // 相对路径导入同模块内的代码
-import { useGitHubStore } from '../store/github-store';
-import { GitHubManager } from './GitHubManager';
+import { useGitHubStore } from "../store/github-store";
+import { GitHubManager } from "./GitHubManager";
 ```
 
 ### 跨模块导入
+
 ```typescript
 // 使用模块的主导出
-import { GitHubManager } from '~/features/github-manager';
+import { GitHubManager } from "~/features/github-manager";
 
 // 或者从shared导入公共代码
-import { seo } from '~/shared/utils/seo';
+import { seo } from "~/shared/utils/seo";
 ```
 
 ## 模块导出规范
 
 每个模块都有统一的导出文件：
+
 - `components/index.ts` - 导出所有组件
 - `hooks/index.ts` - 导出所有hooks
 - `services/index.ts` - 导出所有服务

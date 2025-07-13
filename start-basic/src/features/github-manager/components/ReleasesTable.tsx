@@ -26,6 +26,7 @@ export function ReleasesTable() {
     fetchReleases,
     debouncedSearchKeyword,
     clearCache,
+    forceRefreshReleases,
   } = useGitHubStore();
 
   const [deletingRelease, setDeletingRelease] = useState<number | null>(null);
@@ -54,9 +55,8 @@ export function ReleasesTable() {
 
     try {
       await deleteRelease(releaseId);
-      // 清除缓存并重新获取数据
-      clearCache();
-      await fetchReleases();
+      // 强制刷新数据，绕过缓存
+      await forceRefreshReleases();
     } catch (error) {
       console.error("删除发布版本失败:", error);
     } finally {

@@ -66,9 +66,13 @@ export interface GitHubState {
     type: "releases" | "tags",
     key: string
   ) => { data: any[]; hasNextPage: boolean } | null;
+
+  // Force refresh without cache
+  forceRefreshReleases: () => Promise<void>;
+  forceRefreshTags: () => Promise<void>;
 }
 
-const CACHE_DURATION = 5 * 60 * 1000; // 5分钟缓存
+const CACHE_DURATION = 2 * 60 * 1000; // 2分钟缓存，减少缓存时间
 
 export const useGitHubStore = create<GitHubState>()(
   subscribeWithSelector((set, get) => ({
@@ -153,6 +157,24 @@ export const useGitHubStore = create<GitHubState>()(
         releasesCache: new Map(),
         tagsCache: new Map(),
       });
+    },
+
+    // Force refresh without cache
+    forceRefreshReleases: async () => {
+      // 清除releases缓存
+      set({ releasesCache: new Map() });
+      // 重新获取数据
+      await get().fetchReleases(
+        get().releasesPage,
+        get().debouncedSearchKeyword
+      );
+    },
+
+    forceRefreshTags: async () => {
+      // 清除tags缓存
+      set({ tagsCache: new Map() });
+      // 重新获取数据
+      await get().fetchTags(get().tagsPage, get().debouncedSearchKeyword);
     },
 
     // Data fetching
@@ -258,23 +280,11 @@ export const useGitHubStore = create<GitHubState>()(
       try {
         await bulkDeleteReleases(releaseIds);
 
-        // 立即从当前列表中移除已删除的releases
-        const updatedReleases = releases.filter(
-          (release) => !releaseIds.includes(release.id)
-        );
+        // 清除选择
+        set({ selectedIds: new Set() });
 
-        set({
-          selectedIds: new Set(),
-          releases: updatedReleases,
-          releasesLoading: false,
-        });
-
-        // 清除缓存并重新获取数据以确保数据一致性
-        get().clearCache();
-        await get().fetchReleases(
-          get().releasesPage,
-          get().debouncedSearchKeyword
-        );
+        // 强制刷新数据，绕过缓存
+        await get().forceRefreshReleases();
       } catch (error) {
         set({
           releasesError:
@@ -297,18 +307,11 @@ export const useGitHubStore = create<GitHubState>()(
       try {
         await bulkDeleteTags(tagNames);
 
-        // 立即从当前列表中移除已删除的tags
-        const updatedTags = tags.filter((tag) => !tagNames.includes(tag.name));
+        // 清除选择
+        set({ selectedIds: new Set() });
 
-        set({
-          selectedIds: new Set(),
-          tags: updatedTags,
-          tagsLoading: false,
-        });
-
-        // 清除缓存并重新获取数据以确保数据一致性
-        get().clearCache();
-        await get().fetchTags(get().tagsPage, get().debouncedSearchKeyword);
+        // 强制刷新数据，绕过缓存
+        await get().forceRefreshTags();
       } catch (error) {
         set({
           tagsError: error instanceof Error ? error.message : "Delete failed",
