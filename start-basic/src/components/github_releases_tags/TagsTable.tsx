@@ -4,10 +4,12 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { Check, Copy, ExternalLink, GitBranch } from "lucide-react";
+import { Check, Copy, ExternalLink, GitBranch, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { GitHubTag } from "~/utils/github_releases_tags/github";
+import { deleteTag } from "~/utils/github_releases_tags/github";
 import { useGitHubStore } from "~/utils/github_releases_tags/github-store";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { MarkdownViewer } from "./MarkdownViewer";
 import { TagDownloadButton } from "./TagDownloadButton";
 
@@ -23,9 +25,12 @@ export function TagsTable() {
     toggleSelectAll,
     fetchTags,
     debouncedSearchKeyword,
+    clearCache,
   } = useGitHubStore();
 
   const [copiedSha, setCopiedSha] = useState<string | null>(null);
+  const [deletingTag, setDeletingTag] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTags(1, debouncedSearchKeyword);
@@ -39,6 +44,32 @@ export function TagsTable() {
     } catch (err) {
       console.error("Failed to copy:", err);
     }
+  };
+
+  const handleDeleteSingleTag = async (tagName: string) => {
+    setConfirmDelete(tagName);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!confirmDelete) return;
+
+    setConfirmDelete(null);
+    setDeletingTag(confirmDelete);
+
+    try {
+      await deleteTag(confirmDelete);
+      // 清除缓存并重新获取数据
+      clearCache();
+      await fetchTags();
+    } catch (error) {
+      console.error("删除标签失败:", error);
+    } finally {
+      setDeletingTag(null);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setConfirmDelete(null);
   };
 
   const columns = [
@@ -135,15 +166,26 @@ export function TagsTable() {
       id: "actions",
       header: "Actions",
       cell: ({ row }) => (
-        <a
-          href={row.original.commit.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800"
-        >
-          <ExternalLink className="w-4 h-4" />
-          View Commit
-        </a>
+        <div className="flex items-center gap-2">
+          <a
+            href={row.original.commit.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800"
+          >
+            <ExternalLink className="w-4 h-4" />
+            View Commit
+          </a>
+          <button
+            onClick={() => handleDeleteSingleTag(row.original.name)}
+            disabled={deletingTag === row.original.name}
+            className="inline-flex items-center gap-1 text-red-600 hover:text-red-800 disabled:opacity-50"
+            title="删除此标签"
+          >
+            <Trash2 className="w-4 h-4" />
+            {deletingTag === row.original.name ? "删除中..." : "删除"}
+          </button>
+        </div>
       ),
     }),
   ];
@@ -210,6 +252,18 @@ export function TagsTable() {
           </table>
         </div>
       )}
+
+      {/* 确认删除对话框 */}
+      <ConfirmDialog
+        isOpen={!!confirmDelete}
+        title="删除标签"
+        message={`确定要删除标签 "${confirmDelete}" 吗？此操作不可撤销，删除后将无法恢复。`}
+        confirmText="删除"
+        cancelText="取消"
+        variant="danger"
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+      />
     </div>
   );
 }

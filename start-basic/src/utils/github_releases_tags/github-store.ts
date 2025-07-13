@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import {
   bulkDeleteReleases,
+  bulkDeleteTags,
   getReleases,
   getTags,
   searchReleases,
@@ -57,6 +58,7 @@ export interface GitHubState {
   fetchReleases: (page?: number, keyword?: string) => Promise<void>;
   fetchTags: (page?: number, keyword?: string) => Promise<void>;
   deleteSelectedReleases: () => Promise<void>;
+  deleteSelectedTags: () => Promise<void>;
 
   // Cache management
   clearCache: () => void;
@@ -244,23 +246,73 @@ export const useGitHubStore = create<GitHubState>()(
     },
 
     deleteSelectedReleases: async () => {
-      const { selectedIds } = get();
+      const { selectedIds, releases } = get();
       const releaseIds = Array.from(selectedIds).filter(
         (id) => typeof id === "number"
       ) as number[];
 
       if (releaseIds.length === 0) return;
 
+      set({ releasesLoading: true });
+
       try {
         await bulkDeleteReleases(releaseIds);
-        set({ selectedIds: new Set() });
-        // 清除缓存并重新获取数据
+
+        // 立即从当前列表中移除已删除的releases
+        const updatedReleases = releases.filter(
+          (release) => !releaseIds.includes(release.id)
+        );
+
+        set({
+          selectedIds: new Set(),
+          releases: updatedReleases,
+          releasesLoading: false,
+        });
+
+        // 清除缓存并重新获取数据以确保数据一致性
         get().clearCache();
-        get().fetchReleases(get().releasesPage, get().debouncedSearchKeyword);
+        await get().fetchReleases(
+          get().releasesPage,
+          get().debouncedSearchKeyword
+        );
       } catch (error) {
         set({
           releasesError:
             error instanceof Error ? error.message : "Delete failed",
+          releasesLoading: false,
+        });
+      }
+    },
+
+    deleteSelectedTags: async () => {
+      const { selectedIds, tags } = get();
+      const tagNames = Array.from(selectedIds).filter(
+        (id) => typeof id === "string"
+      ) as string[];
+
+      if (tagNames.length === 0) return;
+
+      set({ tagsLoading: true });
+
+      try {
+        await bulkDeleteTags(tagNames);
+
+        // 立即从当前列表中移除已删除的tags
+        const updatedTags = tags.filter((tag) => !tagNames.includes(tag.name));
+
+        set({
+          selectedIds: new Set(),
+          tags: updatedTags,
+          tagsLoading: false,
+        });
+
+        // 清除缓存并重新获取数据以确保数据一致性
+        get().clearCache();
+        await get().fetchTags(get().tagsPage, get().debouncedSearchKeyword);
+      } catch (error) {
+        set({
+          tagsError: error instanceof Error ? error.message : "Delete failed",
+          tagsLoading: false,
         });
       }
     },

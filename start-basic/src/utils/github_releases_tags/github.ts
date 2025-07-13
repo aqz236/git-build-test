@@ -91,6 +91,21 @@ export async function bulkDeleteReleases(releaseIds: number[]) {
   await Promise.all(promises);
 }
 
+// 删除tag
+export async function deleteTag(tagName: string) {
+  await octokit.rest.git.deleteRef({
+    owner: GITHUB_CONFIG.owner,
+    repo: GITHUB_CONFIG.repo,
+    ref: `tags/${tagName}`,
+  });
+}
+
+// 批量删除tags
+export async function bulkDeleteTags(tagNames: string[]) {
+  const promises = tagNames.map((name) => deleteTag(name));
+  await Promise.all(promises);
+}
+
 // 搜索releases（基于内容关键词）
 export async function searchReleases(keyword: string, page = 1, perPage = 10) {
   const { data } = await getReleases(page, perPage);
