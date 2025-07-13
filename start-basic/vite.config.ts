@@ -11,7 +11,13 @@ export default defineConfig({
     tsConfigPaths({
       projects: ["./tsconfig.json"],
     }),
-    tanstackStart({ customViteReactPlugin: true }),
+    tanstackStart({ 
+      customViteReactPlugin: true,
+      tsr: {
+        routesDirectory: "./src/app/routes",
+        generatedRouteTree: "./src/routeTree.gen.ts",
+      }
+    }),
     viteReact(),
   ],
 });

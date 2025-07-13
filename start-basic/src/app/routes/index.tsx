@@ -24,7 +24,7 @@ function Home() {
           </p>
           <div className="flex justify-center gap-4">
             <Link
-              to="/github_releases_tags"
+              to="/github-manager"
               className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
             >
               <Github className="w-5 h-5" />
@@ -50,7 +50,7 @@ function Home() {
               统一管理 GitHub 仓库的 releases 和 tags，支持批量操作和搜索功能
             </p>
             <Link
-              to="/github_releases_tags"
+              to="/github-manager"
               className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium"
             >
               立即体验
@@ -156,16 +156,12 @@ function Home() {
             <div className="text-center">
               <div className="text-3xl font-bold text-purple-600 mb-2">🎨</div>
               <h3 className="font-semibold text-gray-900 mb-2">界面友好</h3>
-              <p className="text-sm text-gray-600">
-                现代化设计，操作简单直观
-              </p>
+              <p className="text-sm text-gray-600">现代化设计，操作简单直观</p>
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-orange-600 mb-2">🚀</div>
               <h3 className="font-semibold text-gray-900 mb-2">持续更新</h3>
-              <p className="text-sm text-gray-600">
-                定期添加新功能和优化
-              </p>
+              <p className="text-sm text-gray-600">定期添加新功能和优化</p>
             </div>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import { createRouter as createTanStackRouter } from "@tanstack/react-router";
-import { DefaultCatchBoundary } from "~/features/github-manager/components/DefaultCatchBoundary";
-import { NotFound } from "~/features/github-manager/components/NotFound";
+import { DefaultCatchBoundary } from "~/app/github-manager/components/DefaultCatchBoundary";
+import { NotFound } from "~/app/github-manager/components/NotFound";
 import { routeTree } from "./routeTree.gen";
 
 export function createRouter() {

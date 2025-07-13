@@ -8,46 +8,45 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as Github_releases_tagsIndexRouteImport } from './routes/github_releases_tags/index'
+import { Route as rootRouteImport } from './app/routes/__root'
+import { Route as IndexRouteImport } from './app/routes/index'
+import { Route as GithubManagerIndexRouteImport } from './app/routes/github-manager.index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const Github_releases_tagsIndexRoute =
-  Github_releases_tagsIndexRouteImport.update({
-    id: '/github_releases_tags/',
-    path: '/github_releases_tags/',
-    getParentRoute: () => rootRouteImport,
-  } as any)
+const GithubManagerIndexRoute = GithubManagerIndexRouteImport.update({
+  id: '/github-manager/',
+  path: '/github-manager/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/github_releases_tags': typeof Github_releases_tagsIndexRoute
+  '/github-manager': typeof GithubManagerIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/github_releases_tags': typeof Github_releases_tagsIndexRoute
+  '/github-manager': typeof GithubManagerIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/github_releases_tags/': typeof Github_releases_tagsIndexRoute
+  '/github-manager/': typeof GithubManagerIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/github_releases_tags'
+  fullPaths: '/' | '/github-manager'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/github_releases_tags'
-  id: '__root__' | '/' | '/github_releases_tags/'
+  to: '/' | '/github-manager'
+  id: '__root__' | '/' | '/github-manager/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  Github_releases_tagsIndexRoute: typeof Github_releases_tagsIndexRoute
+  GithubManagerIndexRoute: typeof GithubManagerIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -59,11 +58,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/github_releases_tags/': {
-      id: '/github_releases_tags/'
-      path: '/github_releases_tags'
-      fullPath: '/github_releases_tags'
-      preLoaderRoute: typeof Github_releases_tagsIndexRouteImport
+    '/github-manager/': {
+      id: '/github-manager/'
+      path: '/github-manager'
+      fullPath: '/github-manager'
+      preLoaderRoute: typeof GithubManagerIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -71,7 +70,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  Github_releases_tagsIndexRoute: Github_releases_tagsIndexRoute,
+  GithubManagerIndexRoute: GithubManagerIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

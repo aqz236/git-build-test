@@ -10,10 +10,10 @@ import {
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { Github, Home as HomeIcon, Settings } from "lucide-react";
 import * as React from "react";
-import { DefaultCatchBoundary } from "~/features/github-manager/components/DefaultCatchBoundary";
-import { NotFound } from "~/features/github-manager/components/NotFound";
-import appCss from "~/styles/app.css?url";
+import { DefaultCatchBoundary } from "~/app/github-manager/components/DefaultCatchBoundary";
+import { NotFound } from "~/app/github-manager/components/NotFound";
 import { seo } from "~/shared/utils/seo";
+import appCss from "~/styles/app.css?url";
 
 // 创建 QueryClient 实例
 const queryClient = new QueryClient({
@@ -100,7 +100,7 @@ function RootComponent() {
                       首页
                     </Link>
                     <Link
-                      to="/github_releases_tags"
+                      to="/github-manager"
                       className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-100 rounded-md transition-colors"
                       activeProps={{
                         className:
