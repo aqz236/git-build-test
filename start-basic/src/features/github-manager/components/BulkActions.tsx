@@ -1,6 +1,6 @@
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
-import { useGitHubStore } from "~/utils/github_releases_tags/github-store";
+import { useGitHubStore } from "../store/github-store";
 import { ConfirmDialog } from "./ConfirmDialog";
 
 export function BulkActions() {

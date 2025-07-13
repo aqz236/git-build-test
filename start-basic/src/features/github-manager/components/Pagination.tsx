@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useGitHubStore } from "~/utils/github_releases_tags/github-store";
+import { useGitHubStore } from "../store/github-store";
 
 interface PaginationProps {
   type: "releases" | "tags";

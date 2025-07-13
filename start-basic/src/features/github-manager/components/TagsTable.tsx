@@ -6,9 +6,9 @@ import {
 } from "@tanstack/react-table";
 import { Check, Copy, ExternalLink, GitBranch, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { GitHubTag } from "~/utils/github_releases_tags/github";
-import { deleteTag } from "~/utils/github_releases_tags/github";
-import { useGitHubStore } from "~/utils/github_releases_tags/github-store";
+import type { GitHubTag } from "../services/github-api";
+import { deleteTag } from "../services/github-api";
+import { useGitHubStore } from "../store/github-store";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { MarkdownViewer } from "./MarkdownViewer";
 import { TagDownloadButton } from "./TagDownloadButton";

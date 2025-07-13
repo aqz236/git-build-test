@@ -1,5 +1,5 @@
 import { GitBranch, Tag } from "lucide-react";
-import { useGitHubStore } from "~/utils/github_releases_tags/github-store";
+import { useGitHubStore } from "../store/github-store";
 
 export function TabSwitcher() {
   const { activeTab, setActiveTab } = useGitHubStore();

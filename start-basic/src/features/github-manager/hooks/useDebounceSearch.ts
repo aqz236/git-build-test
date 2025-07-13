@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useGitHubStore } from "~/utils/github_releases_tags/github-store";
+import { useGitHubStore } from "../store/github-store";
 
 export function useDebounceSearch() {
   const { searchKeyword, setDebouncedSearchKeyword, setIsSearching } =

@@ -9,7 +9,7 @@ import {
   searchTags,
   type GitHubRelease,
   type GitHubTag,
-} from "./github";
+} from "../services/github-api";
 
 export interface GitHubState {
   // Releases 数据

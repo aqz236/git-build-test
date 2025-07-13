@@ -1,6 +1,6 @@
 import { Search } from "lucide-react";
-import { useDebounceSearch } from "~/hooks/github_releases_tags/useDebounceSearch";
-import { useGitHubStore } from "~/utils/github_releases_tags/github-store";
+import { useDebounceSearch } from "../hooks/useDebounceSearch";
+import { useGitHubStore } from "../store/github-store";
 
 export function SearchBar() {
   const { searchKeyword, setSearchKeyword, isSearching, activeTab } =
