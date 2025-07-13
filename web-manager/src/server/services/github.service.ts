@@ -1,5 +1,11 @@
-import { Octokit } from '@octokit/rest';
-import type { GitHubRelease, GitHubTag, GitHubCommit, RepositoryInfo, DeleteResponse } from '../../shared/types';
+import { Octokit } from "@octokit/rest";
+import type {
+  DeleteResponse,
+  GitHubCommit,
+  GitHubRelease,
+  GitHubTag,
+  RepositoryInfo,
+} from "../../shared/types";
 
 export class GitHubService {
   private octokit: Octokit;
@@ -25,7 +31,7 @@ export class GitHubService {
       owner: data.owner.login,
       name: data.name,
       full_name: data.full_name,
-      description: data.description || '',
+      description: data.description || "",
       html_url: data.html_url,
       default_branch: data.default_branch,
     };
@@ -49,29 +55,31 @@ export class GitHubService {
 
       if (data.length === 0) break;
 
-      releases.push(...data.map(release => ({
-        id: release.id,
-        tag_name: release.tag_name,
-        name: release.name || release.tag_name,
-        body: release.body || '',
-        published_at: release.published_at || '',
-        created_at: release.created_at,
-        prerelease: release.prerelease,
-        draft: release.draft,
-        author: {
-          login: release.author?.login || 'unknown',
-          avatar_url: release.author?.avatar_url || '',
-        },
-        html_url: release.html_url,
-        assets: release.assets.map(asset => ({
-          id: asset.id,
-          name: asset.name,
-          size: asset.size,
-          download_count: asset.download_count,
-          browser_download_url: asset.browser_download_url,
-          created_at: asset.created_at,
-        })),
-      })));
+      releases.push(
+        ...data.map((release) => ({
+          id: release.id,
+          tag_name: release.tag_name,
+          name: release.name || release.tag_name,
+          body: release.body || "",
+          published_at: release.published_at || "",
+          created_at: release.created_at,
+          prerelease: release.prerelease,
+          draft: release.draft,
+          author: {
+            login: release.author?.login || "unknown",
+            avatar_url: release.author?.avatar_url || "",
+          },
+          html_url: release.html_url,
+          assets: release.assets.map((asset) => ({
+            id: asset.id,
+            name: asset.name,
+            size: asset.size,
+            download_count: asset.download_count,
+            browser_download_url: asset.browser_download_url,
+            created_at: asset.created_at,
+          })),
+        }))
+      );
 
       if (data.length < per_page) break;
       page++;
@@ -98,15 +106,17 @@ export class GitHubService {
 
       if (data.length === 0) break;
 
-      tags.push(...data.map(tag => ({
-        name: tag.name,
-        commit: {
-          sha: tag.commit.sha,
-          url: tag.commit.url,
-        },
-        zipball_url: tag.zipball_url,
-        tarball_url: tag.tarball_url,
-      })));
+      tags.push(
+        ...data.map((tag) => ({
+          name: tag.name,
+          commit: {
+            sha: tag.commit.sha,
+            url: tag.commit.url,
+          },
+          zipball_url: tag.zipball_url,
+          tarball_url: tag.tarball_url,
+        }))
+      );
 
       if (data.length < per_page) break;
       page++;
@@ -130,15 +140,17 @@ export class GitHubService {
       commit: {
         message: data.commit.message,
         author: {
-          name: data.commit.author?.name || 'unknown',
-          email: data.commit.author?.email || '',
-          date: data.commit.author?.date || '',
+          name: data.commit.author?.name || "unknown",
+          email: data.commit.author?.email || "",
+          date: data.commit.author?.date || "",
         },
       },
-      author: data.author ? {
-        login: data.author.login,
-        avatar_url: data.author.avatar_url,
-      } : null,
+      author: data.author
+        ? {
+            login: data.author.login,
+            avatar_url: data.author.avatar_url,
+          }
+        : null,
       html_url: data.html_url,
     };
   }
@@ -182,11 +194,11 @@ export class GitHubService {
    */
   async deleteMultipleReleases(releaseIds: number[]): Promise<DeleteResponse> {
     const results = await Promise.allSettled(
-      releaseIds.map(id => this.deleteRelease(id))
+      releaseIds.map((id) => this.deleteRelease(id))
     );
 
-    const successful = results.filter(result => 
-      result.status === 'fulfilled' && result.value === true
+    const successful = results.filter(
+      (result) => result.status === "fulfilled" && result.value === true
     ).length;
 
     return {
@@ -201,11 +213,11 @@ export class GitHubService {
    */
   async deleteMultipleTags(tagNames: string[]): Promise<DeleteResponse> {
     const results = await Promise.allSettled(
-      tagNames.map(name => this.deleteTag(name))
+      tagNames.map((name) => this.deleteTag(name))
     );
 
-    const successful = results.filter(result => 
-      result.status === 'fulfilled' && result.value === true
+    const successful = results.filter(
+      (result) => result.status === "fulfilled" && result.value === true
     ).length;
 
     return {

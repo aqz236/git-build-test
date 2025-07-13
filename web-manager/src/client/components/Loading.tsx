@@ -1,10 +1,8 @@
-import React from 'react';
-
 interface LoadingProps {
   text?: string;
 }
 
-export function Loading({ text = 'Loading...' }: LoadingProps) {
+export function Loading({ text = "Loading..." }: LoadingProps) {
   return (
     <div className="flex items-center justify-center py-12">
       <div className="text-center">

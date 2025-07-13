@@ -1,8 +1,13 @@
-import React, { useState } from 'react';
-import { useTags, useDeleteTag, useBatchDelete, useCommit } from '../hooks/github.hooks';
-import { Loading, LoadingCard } from './Loading';
-import { ErrorMessage } from './ErrorMessage';
-import type { GitHubTag } from '../../shared/types';
+import { useState } from "react";
+import type { GitHubTag } from "../../shared/types";
+import {
+  useBatchDelete,
+  useCommit,
+  useDeleteTag,
+  useTags,
+} from "../hooks/github.hooks";
+import { ErrorMessage } from "./ErrorMessage";
+import { LoadingCard } from "./Loading";
 
 export function TagsManager() {
   const { data: tags, isLoading, error, refetch } = useTags();
@@ -15,7 +20,7 @@ export function TagsManager() {
     if (selectedTags.size === tags?.length) {
       setSelectedTags(new Set());
     } else {
-      setSelectedTags(new Set(tags?.map(t => t.name) || []));
+      setSelectedTags(new Set(tags?.map((t) => t.name) || []));
     }
   };
 
@@ -31,16 +36,16 @@ export function TagsManager() {
 
   const handleDeleteSelected = async () => {
     if (selectedTags.size === 0) return;
-    
+
     try {
       await batchDelete.mutateAsync({
-        type: 'tags',
-        items: Array.from(selectedTags)
+        type: "tags",
+        items: Array.from(selectedTags),
       });
       setSelectedTags(new Set());
       setShowConfirm(false);
     } catch (error) {
-      console.error('Failed to delete tags:', error);
+      console.error("Failed to delete tags:", error);
     }
   };
 
@@ -48,7 +53,7 @@ export function TagsManager() {
     try {
       await deleteTag.mutateAsync(tagName);
     } catch (error) {
-      console.error('Failed to delete tag:', error);
+      console.error("Failed to delete tag:", error);
     }
   };
 
@@ -71,10 +76,7 @@ export function TagsManager() {
     return (
       <div className="space-y-4">
         <h2 className="text-xl font-semibold">Tags</h2>
-        <ErrorMessage 
-          message={error.message}
-          onRetry={() => refetch()}
-        />
+        <ErrorMessage message={error.message} onRetry={() => refetch()} />
       </div>
     );
   }
@@ -140,7 +142,9 @@ export function TagsManager() {
         <div className="text-center py-12 bg-white rounded-lg shadow">
           <i className="fas fa-tags text-4xl text-gray-300 mb-4"></i>
           <h3 className="text-lg font-semibold text-gray-500">No tags found</h3>
-          <p className="text-gray-400">This repository doesn't have any tags yet.</p>
+          <p className="text-gray-400">
+            This repository doesn't have any tags yet.
+          </p>
         </div>
       )}
 
@@ -150,8 +154,8 @@ export function TagsManager() {
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-semibold mb-4">Confirm Deletion</h3>
             <p className="text-gray-600 mb-6">
-              Are you sure you want to delete {selectedTags.size} tag(s)? 
-              This action cannot be undone.
+              Are you sure you want to delete {selectedTags.size} tag(s)? This
+              action cannot be undone.
             </p>
             <div className="flex gap-2 justify-end">
               <button
@@ -193,21 +197,31 @@ interface TagCardProps {
   isDeleting: boolean;
 }
 
-function TagCard({ tag, isSelected, onSelect, onDelete, isDeleting }: TagCardProps) {
+function TagCard({
+  tag,
+  isSelected,
+  onSelect,
+  onDelete,
+  isDeleting,
+}: TagCardProps) {
   const { data: commit, isLoading: commitLoading } = useCommit(tag.commit.sha);
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
   return (
-    <div className={`p-4 hover:bg-gray-50 transition-colors ${isSelected ? 'bg-blue-50' : ''}`}>
+    <div
+      className={`p-4 hover:bg-gray-50 transition-colors ${
+        isSelected ? "bg-blue-50" : ""
+      }`}
+    >
       <div className="flex items-start gap-4">
         <input
           type="checkbox"
@@ -230,7 +244,7 @@ function TagCard({ tag, isSelected, onSelect, onDelete, isDeleting }: TagCardPro
               {tag.commit.sha.substring(0, 7)}
             </a>
           </div>
-          
+
           {commitLoading ? (
             <div className="text-sm text-gray-500">
               <i className="fas fa-spinner fa-spin mr-2"></i>
@@ -241,8 +255,8 @@ function TagCard({ tag, isSelected, onSelect, onDelete, isDeleting }: TagCardPro
               <div className="flex items-center gap-4 text-sm text-gray-600">
                 {commit.author && (
                   <div className="flex items-center gap-1">
-                    <img 
-                      src={commit.author.avatar_url} 
+                    <img
+                      src={commit.author.avatar_url}
                       alt={commit.author.login}
                       className="w-5 h-5 rounded-full"
                     />
@@ -254,12 +268,12 @@ function TagCard({ tag, isSelected, onSelect, onDelete, isDeleting }: TagCardPro
                   {formatDate(commit.commit.author.date)}
                 </div>
               </div>
-              
+
               <div className="text-sm text-gray-700">
                 <div className="font-medium">Commit message:</div>
                 <div className="mt-1 max-w-2xl">
-                  {commit.commit.message.split('\n')[0]}
-                  {commit.commit.message.includes('\n') && (
+                  {commit.commit.message.split("\n")[0]}
+                  {commit.commit.message.includes("\n") && (
                     <span className="text-gray-500">...</span>
                   )}
                 </div>
@@ -288,7 +302,7 @@ function TagCard({ tag, isSelected, onSelect, onDelete, isDeleting }: TagCardPro
             </a>
           </div>
         </div>
-        
+
         <button
           onClick={onDelete}
           disabled={isDeleting}

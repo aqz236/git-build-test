@@ -67,6 +67,6 @@ export interface DeleteResponse {
 }
 
 export interface BatchDeleteRequest {
-  type: 'releases' | 'tags' | 'both';
+  type: "releases" | "tags" | "both";
   items: string[];
 }

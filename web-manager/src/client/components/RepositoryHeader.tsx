@@ -1,5 +1,4 @@
-import React from 'react';
-import { useRepository } from '../hooks/github.hooks';
+import { useRepository } from "../hooks/github.hooks";
 
 export function RepositoryHeader() {
   const { data: repo, isLoading, error } = useRepository();
@@ -40,9 +39,9 @@ export function RepositoryHeader() {
             <div className="flex items-center mb-2">
               <i className="fab fa-github text-gray-600 mr-3 text-xl"></i>
               <h1 className="text-2xl font-bold text-gray-900">
-                <a 
-                  href={repo.html_url} 
-                  target="_blank" 
+                <a
+                  href={repo.html_url}
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-blue-600 transition-colors"
                 >
@@ -56,7 +55,9 @@ export function RepositoryHeader() {
           </div>
           <div className="text-right">
             <div className="text-sm text-gray-500">Default Branch</div>
-            <div className="font-semibold text-gray-900">{repo.default_branch}</div>
+            <div className="font-semibold text-gray-900">
+              {repo.default_branch}
+            </div>
           </div>
         </div>
       </div>

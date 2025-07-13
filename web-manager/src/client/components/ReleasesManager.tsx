@@ -1,21 +1,27 @@
-import React, { useState } from 'react';
-import { useReleases, useDeleteRelease, useBatchDelete } from '../hooks/github.hooks';
-import { Loading, LoadingCard } from './Loading';
-import { ErrorMessage } from './ErrorMessage';
-import type { GitHubRelease } from '../../shared/types';
+import { useState } from "react";
+import type { GitHubRelease } from "../../shared/types";
+import {
+  useBatchDelete,
+  useDeleteRelease,
+  useReleases,
+} from "../hooks/github.hooks";
+import { ErrorMessage } from "./ErrorMessage";
+import { LoadingCard } from "./Loading";
 
 export function ReleasesManager() {
   const { data: releases, isLoading, error, refetch } = useReleases();
   const deleteRelease = useDeleteRelease();
   const batchDelete = useBatchDelete();
-  const [selectedReleases, setSelectedReleases] = useState<Set<number>>(new Set());
+  const [selectedReleases, setSelectedReleases] = useState<Set<number>>(
+    new Set()
+  );
   const [showConfirm, setShowConfirm] = useState(false);
 
   const handleSelectAll = () => {
     if (selectedReleases.size === releases?.length) {
       setSelectedReleases(new Set());
     } else {
-      setSelectedReleases(new Set(releases?.map(r => r.id) || []));
+      setSelectedReleases(new Set(releases?.map((r) => r.id) || []));
     }
   };
 
@@ -31,16 +37,16 @@ export function ReleasesManager() {
 
   const handleDeleteSelected = async () => {
     if (selectedReleases.size === 0) return;
-    
+
     try {
       await batchDelete.mutateAsync({
-        type: 'releases',
-        items: Array.from(selectedReleases).map(String)
+        type: "releases",
+        items: Array.from(selectedReleases).map(String),
       });
       setSelectedReleases(new Set());
       setShowConfirm(false);
     } catch (error) {
-      console.error('Failed to delete releases:', error);
+      console.error("Failed to delete releases:", error);
     }
   };
 
@@ -48,7 +54,7 @@ export function ReleasesManager() {
     try {
       await deleteRelease.mutateAsync(releaseId);
     } catch (error) {
-      console.error('Failed to delete release:', error);
+      console.error("Failed to delete release:", error);
     }
   };
 
@@ -71,10 +77,7 @@ export function ReleasesManager() {
     return (
       <div className="space-y-4">
         <h2 className="text-xl font-semibold">Releases</h2>
-        <ErrorMessage 
-          message={error.message}
-          onRetry={() => refetch()}
-        />
+        <ErrorMessage message={error.message} onRetry={() => refetch()} />
       </div>
     );
   }
@@ -114,7 +117,10 @@ export function ReleasesManager() {
             <label className="flex items-center">
               <input
                 type="checkbox"
-                checked={selectedReleases.size === releases.length && releases.length > 0}
+                checked={
+                  selectedReleases.size === releases.length &&
+                  releases.length > 0
+                }
                 onChange={handleSelectAll}
                 className="mr-2"
               />
@@ -139,8 +145,12 @@ export function ReleasesManager() {
       {releases && releases.length === 0 && (
         <div className="text-center py-12 bg-white rounded-lg shadow">
           <i className="fas fa-tag text-4xl text-gray-300 mb-4"></i>
-          <h3 className="text-lg font-semibold text-gray-500">No releases found</h3>
-          <p className="text-gray-400">This repository doesn't have any releases yet.</p>
+          <h3 className="text-lg font-semibold text-gray-500">
+            No releases found
+          </h3>
+          <p className="text-gray-400">
+            This repository doesn't have any releases yet.
+          </p>
         </div>
       )}
 
@@ -150,8 +160,8 @@ export function ReleasesManager() {
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-semibold mb-4">Confirm Deletion</h3>
             <p className="text-gray-600 mb-6">
-              Are you sure you want to delete {selectedReleases.size} release(s)? 
-              This action cannot be undone.
+              Are you sure you want to delete {selectedReleases.size}{" "}
+              release(s)? This action cannot be undone.
             </p>
             <div className="flex gap-2 justify-end">
               <button
@@ -193,26 +203,36 @@ interface ReleaseCardProps {
   isDeleting: boolean;
 }
 
-function ReleaseCard({ release, isSelected, onSelect, onDelete, isDeleting }: ReleaseCardProps) {
+function ReleaseCard({
+  release,
+  isSelected,
+  onSelect,
+  onDelete,
+  isDeleting,
+}: ReleaseCardProps) {
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
   const formatSize = (bytes: number) => {
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    if (bytes === 0) return '0 B';
+    const sizes = ["B", "KB", "MB", "GB"];
+    if (bytes === 0) return "0 B";
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    return Math.round((bytes / Math.pow(1024, i)) * 100) / 100 + ' ' + sizes[i];
+    return Math.round((bytes / Math.pow(1024, i)) * 100) / 100 + " " + sizes[i];
   };
 
   return (
-    <div className={`p-4 hover:bg-gray-50 transition-colors ${isSelected ? 'bg-blue-50' : ''}`}>
+    <div
+      className={`p-4 hover:bg-gray-50 transition-colors ${
+        isSelected ? "bg-blue-50" : ""
+      }`}
+    >
       <div className="flex items-start gap-4">
         <input
           type="checkbox"
@@ -223,9 +243,9 @@ function ReleaseCard({ release, isSelected, onSelect, onDelete, isDeleting }: Re
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-2">
             <h3 className="font-semibold text-lg">
-              <a 
-                href={release.html_url} 
-                target="_blank" 
+              <a
+                href={release.html_url}
+                target="_blank"
                 rel="noopener noreferrer"
                 className="hover:text-blue-600 transition-colors"
               >
@@ -246,11 +266,11 @@ function ReleaseCard({ release, isSelected, onSelect, onDelete, isDeleting }: Re
               </span>
             )}
           </div>
-          
+
           <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
             <div className="flex items-center gap-1">
-              <img 
-                src={release.author.avatar_url} 
+              <img
+                src={release.author.avatar_url}
                 alt={release.author.login}
                 className="w-5 h-5 rounded-full"
               />
@@ -264,10 +284,13 @@ function ReleaseCard({ release, isSelected, onSelect, onDelete, isDeleting }: Re
 
           {release.body && (
             <div className="text-gray-700 text-sm mb-3 max-w-2xl">
-              {release.body.split('\n').slice(0, 3).map((line, i) => (
-                <div key={i}>{line}</div>
-              ))}
-              {release.body.split('\n').length > 3 && (
+              {release.body
+                .split("\n")
+                .slice(0, 3)
+                .map((line, i) => (
+                  <div key={i}>{line}</div>
+                ))}
+              {release.body.split("\n").length > 3 && (
                 <div className="text-gray-500">...</div>
               )}
             </div>
@@ -280,7 +303,10 @@ function ReleaseCard({ release, isSelected, onSelect, onDelete, isDeleting }: Re
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                 {release.assets.map((asset) => (
-                  <div key={asset.id} className="bg-gray-50 rounded p-2 text-sm">
+                  <div
+                    key={asset.id}
+                    className="bg-gray-50 rounded p-2 text-sm"
+                  >
                     <div className="font-medium truncate">{asset.name}</div>
                     <div className="text-gray-600 flex justify-between">
                       <span>{formatSize(asset.size)}</span>
@@ -295,7 +321,7 @@ function ReleaseCard({ release, isSelected, onSelect, onDelete, isDeleting }: Re
             </div>
           )}
         </div>
-        
+
         <button
           onClick={onDelete}
           disabled={isDeleting}

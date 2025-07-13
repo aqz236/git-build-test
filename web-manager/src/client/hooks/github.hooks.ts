@@ -1,13 +1,13 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '../services/api.service';
-import type { BatchDeleteRequest } from '../../shared/types';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { BatchDeleteRequest } from "../../shared/types";
+import { apiClient } from "../services/api.service";
 
 // Query keys
 export const queryKeys = {
-  repository: ['repository'] as const,
-  releases: ['releases'] as const,
-  tags: ['tags'] as const,
-  commit: (sha: string) => ['commit', sha] as const,
+  repository: ["repository"] as const,
+  releases: ["releases"] as const,
+  tags: ["tags"] as const,
+  commit: (sha: string) => ["commit", sha] as const,
 };
 
 /**
@@ -19,7 +19,7 @@ export function useRepository() {
     queryFn: async () => {
       const response = await apiClient.getRepository();
       if (!response.success) {
-        throw new Error(response.error || 'Failed to fetch repository');
+        throw new Error(response.error || "Failed to fetch repository");
       }
       return response.data!;
     },
@@ -35,7 +35,7 @@ export function useReleases() {
     queryFn: async () => {
       const response = await apiClient.getReleases();
       if (!response.success) {
-        throw new Error(response.error || 'Failed to fetch releases');
+        throw new Error(response.error || "Failed to fetch releases");
       }
       return response.data!;
     },
@@ -51,7 +51,7 @@ export function useTags() {
     queryFn: async () => {
       const response = await apiClient.getTags();
       if (!response.success) {
-        throw new Error(response.error || 'Failed to fetch tags');
+        throw new Error(response.error || "Failed to fetch tags");
       }
       return response.data!;
     },
@@ -67,7 +67,7 @@ export function useCommit(sha: string) {
     queryFn: async () => {
       const response = await apiClient.getCommit(sha);
       if (!response.success) {
-        throw new Error(response.error || 'Failed to fetch commit');
+        throw new Error(response.error || "Failed to fetch commit");
       }
       return response.data!;
     },
@@ -80,12 +80,12 @@ export function useCommit(sha: string) {
  */
 export function useDeleteRelease() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (releaseId: number) => {
       const response = await apiClient.deleteRelease(releaseId);
       if (!response.success) {
-        throw new Error(response.error || 'Failed to delete release');
+        throw new Error(response.error || "Failed to delete release");
       }
       return response.data!;
     },
@@ -102,12 +102,12 @@ export function useDeleteRelease() {
  */
 export function useDeleteTag() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (tagName: string) => {
       const response = await apiClient.deleteTag(tagName);
       if (!response.success) {
-        throw new Error(response.error || 'Failed to delete tag');
+        throw new Error(response.error || "Failed to delete tag");
       }
       return response.data!;
     },
@@ -123,12 +123,12 @@ export function useDeleteTag() {
  */
 export function useBatchDelete() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (request: BatchDeleteRequest) => {
       const response = await apiClient.batchDelete(request);
       if (!response.success) {
-        throw new Error(response.error || 'Failed to batch delete');
+        throw new Error(response.error || "Failed to batch delete");
       }
       return response.data!;
     },

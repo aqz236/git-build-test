@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { RepositoryHeader } from './components/RepositoryHeader';
-import { ReleasesManager } from './components/ReleasesManager';
-import { TagsManager } from './components/TagsManager';
-import { useBatchDelete } from './hooks/github.hooks';
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useState } from "react";
+import { ReleasesManager } from "./components/ReleasesManager";
+import { RepositoryHeader } from "./components/RepositoryHeader";
+import { TagsManager } from "./components/TagsManager";
+import { useBatchDelete } from "./hooks/github.hooks";
 
 // 创建 QueryClient 实例
 const queryClient = new QueryClient({
@@ -16,47 +16,47 @@ const queryClient = new QueryClient({
 });
 
 function AppContent() {
-  const [activeTab, setActiveTab] = useState<'releases' | 'tags'>('releases');
+  const [activeTab, setActiveTab] = useState<"releases" | "tags">("releases");
   const [showBatchConfirm, setShowBatchConfirm] = useState(false);
   const batchDelete = useBatchDelete();
 
   const handleBatchDeleteAll = async () => {
     try {
       await batchDelete.mutateAsync({
-        type: 'both',
-        items: []
+        type: "both",
+        items: [],
       });
       setShowBatchConfirm(false);
     } catch (error) {
-      console.error('Failed to delete all:', error);
+      console.error("Failed to delete all:", error);
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
       <RepositoryHeader />
-      
+
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="mb-6">
           <div className="flex items-center justify-between">
             <div className="flex border border-gray-200 rounded-lg overflow-hidden">
               <button
-                onClick={() => setActiveTab('releases')}
+                onClick={() => setActiveTab("releases")}
                 className={`px-6 py-3 font-medium transition-colors ${
-                  activeTab === 'releases'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                  activeTab === "releases"
+                    ? "bg-blue-600 text-white"
+                    : "bg-white text-gray-700 hover:bg-gray-50"
                 }`}
               >
                 <i className="fas fa-tag mr-2"></i>
                 Releases
               </button>
               <button
-                onClick={() => setActiveTab('tags')}
+                onClick={() => setActiveTab("tags")}
                 className={`px-6 py-3 font-medium transition-colors ${
-                  activeTab === 'tags'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                  activeTab === "tags"
+                    ? "bg-blue-600 text-white"
+                    : "bg-white text-gray-700 hover:bg-gray-50"
                 }`}
               >
                 <i className="fas fa-tags mr-2"></i>
@@ -75,8 +75,8 @@ function AppContent() {
         </div>
 
         <div className="tab-content">
-          {activeTab === 'releases' && <ReleasesManager />}
-          {activeTab === 'tags' && <TagsManager />}
+          {activeTab === "releases" && <ReleasesManager />}
+          {activeTab === "tags" && <TagsManager />}
         </div>
       </div>
 
@@ -90,13 +90,14 @@ function AppContent() {
                 ⚠️ DANGER ZONE
               </h3>
               <p className="text-gray-600 mb-6">
-                This will permanently delete <strong>ALL</strong> releases and tags in this repository.
-                This action cannot be undone!
+                This will permanently delete <strong>ALL</strong> releases and
+                tags in this repository. This action cannot be undone!
               </p>
               <div className="bg-red-50 border border-red-200 rounded p-3 mb-6">
                 <p className="text-sm text-red-700">
                   <i className="fas fa-warning mr-2"></i>
-                  This will affect all releases and tags, including those that may be referenced by deployments or workflows.
+                  This will affect all releases and tags, including those that
+                  may be referenced by deployments or workflows.
                 </p>
               </div>
             </div>

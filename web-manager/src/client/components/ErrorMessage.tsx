@@ -1,15 +1,13 @@
-import React from 'react';
-
 interface ErrorMessageProps {
   title?: string;
   message: string;
   onRetry?: () => void;
 }
 
-export function ErrorMessage({ 
-  title = 'Something went wrong',
+export function ErrorMessage({
+  title = "Something went wrong",
   message,
-  onRetry 
+  onRetry,
 }: ErrorMessageProps) {
   return (
     <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
