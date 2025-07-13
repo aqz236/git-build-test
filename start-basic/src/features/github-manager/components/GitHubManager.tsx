@@ -5,6 +5,7 @@ import { ReleasesTable } from "./ReleasesTable";
 import { SearchBar } from "./SearchBar";
 import { TabSwitcher } from "./TabSwitcher";
 import { TagsTable } from "./TagsTable";
+import { ToastContainer } from "./ToastContainer";
 
 export function GitHubManager() {
   const { activeTab } = useGitHubStore();
@@ -31,6 +32,9 @@ export function GitHubManager() {
 
       {/* Pagination */}
       <Pagination type={activeTab} />
+
+      {/* Toast Notifications */}
+      <ToastContainer />
     </div>
   );
 }

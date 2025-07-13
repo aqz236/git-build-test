@@ -7,7 +7,6 @@ import {
 import { Calendar, ExternalLink, Tag, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { GitHubRelease } from "../services/github-api";
-import { deleteRelease } from "../services/github-api";
 import { useGitHubStore } from "../store/github-store";
 import { AssetsButton } from "./AssetsButton";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -27,9 +26,9 @@ export function ReleasesTable() {
     debouncedSearchKeyword,
     clearCache,
     forceRefreshReleases,
+    deleteSingleRelease,
   } = useGitHubStore();
 
-  const [deletingRelease, setDeletingRelease] = useState<number | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{
     releaseId: number;
     releaseName: string;
@@ -51,16 +50,13 @@ export function ReleasesTable() {
 
     const { releaseId } = confirmDelete;
     setConfirmDelete(null);
-    setDeletingRelease(releaseId);
 
     try {
-      await deleteRelease(releaseId);
-      // 强制刷新数据，绕过缓存
-      await forceRefreshReleases();
+      // 使用store的删除方法，会自动进行乐观更新
+      await deleteSingleRelease(releaseId);
     } catch (error) {
       console.error("删除发布版本失败:", error);
-    } finally {
-      setDeletingRelease(null);
+      // 错误已经在store中处理并显示，这里不需要额外处理
     }
   };
 
@@ -215,12 +211,11 @@ export function ReleasesTable() {
                 row.original.name || row.original.tag_name
               )
             }
-            disabled={deletingRelease === row.original.id}
-            className="inline-flex items-center gap-1 text-red-600 hover:text-red-800 disabled:opacity-50"
+            className="inline-flex items-center gap-1 text-red-600 hover:text-red-800"
             title="删除此发布版本"
           >
             <Trash2 className="w-4 h-4" />
-            {deletingRelease === row.original.id ? "删除中..." : "删除"}
+            删除
           </button>
         </div>
       ),

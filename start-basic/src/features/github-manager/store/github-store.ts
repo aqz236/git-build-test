@@ -3,6 +3,8 @@ import { subscribeWithSelector } from "zustand/middleware";
 import {
   bulkDeleteReleases,
   bulkDeleteTags,
+  deleteRelease,
+  deleteTag,
   getReleases,
   getTags,
   searchReleases,
@@ -10,6 +12,7 @@ import {
   type GitHubRelease,
   type GitHubTag,
 } from "../services/github-api";
+import { useToastStore } from "./toast-store";
 
 export interface GitHubState {
   // Releases 数据
@@ -59,6 +62,8 @@ export interface GitHubState {
   fetchTags: (page?: number, keyword?: string) => Promise<void>;
   deleteSelectedReleases: () => Promise<void>;
   deleteSelectedTags: () => Promise<void>;
+  deleteSingleRelease: (releaseId: number) => Promise<void>;
+  deleteSingleTag: (tagName: string) => Promise<void>;
 
   // Cache management
   clearCache: () => void;
@@ -275,21 +280,45 @@ export const useGitHubStore = create<GitHubState>()(
 
       if (releaseIds.length === 0) return;
 
-      set({ releasesLoading: true });
+      // 乐观更新：立即从UI中移除选中的releases
+      const originalReleases = releases;
+      const updatedReleases = releases.filter(
+        (release) => !releaseIds.includes(release.id)
+      );
+
+      set({
+        releases: updatedReleases,
+        selectedIds: new Set(),
+        releasesError: null,
+      });
 
       try {
+        // 异步执行删除操作
         await bulkDeleteReleases(releaseIds);
 
-        // 清除选择
-        set({ selectedIds: new Set() });
+        // 删除成功，清除缓存以确保下次获取最新数据
+        set({ releasesCache: new Map() });
 
-        // 强制刷新数据，绕过缓存
-        await get().forceRefreshReleases();
+        // 显示成功通知
+        useToastStore.getState().addToast({
+          message: `成功删除 ${releaseIds.length} 个发布版本`,
+          type: "success",
+        });
       } catch (error) {
+        // 删除失败，回滚UI状态
         set({
+          releases: originalReleases,
+          selectedIds: new Set(releaseIds),
           releasesError:
-            error instanceof Error ? error.message : "Delete failed",
-          releasesLoading: false,
+            error instanceof Error ? error.message : "删除失败，请重试",
+        });
+
+        // 显示错误通知
+        useToastStore.getState().addToast({
+          message: `删除发布版本失败：${
+            error instanceof Error ? error.message : "未知错误"
+          }`,
+          type: "error",
         });
       }
     },
@@ -302,21 +331,135 @@ export const useGitHubStore = create<GitHubState>()(
 
       if (tagNames.length === 0) return;
 
-      set({ tagsLoading: true });
+      // 乐观更新：立即从UI中移除选中的tags
+      const originalTags = tags;
+      const updatedTags = tags.filter((tag) => !tagNames.includes(tag.name));
+
+      set({
+        tags: updatedTags,
+        selectedIds: new Set(),
+        tagsError: null,
+      });
 
       try {
+        // 异步执行删除操作
         await bulkDeleteTags(tagNames);
 
-        // 清除选择
-        set({ selectedIds: new Set() });
+        // 删除成功，清除缓存以确保下次获取最新数据
+        set({ tagsCache: new Map() });
 
-        // 强制刷新数据，绕过缓存
-        await get().forceRefreshTags();
-      } catch (error) {
-        set({
-          tagsError: error instanceof Error ? error.message : "Delete failed",
-          tagsLoading: false,
+        // 显示成功通知
+        useToastStore.getState().addToast({
+          message: `成功删除 ${tagNames.length} 个标签`,
+          type: "success",
         });
+      } catch (error) {
+        // 删除失败，回滚UI状态
+        set({
+          tags: originalTags,
+          selectedIds: new Set(tagNames),
+          tagsError:
+            error instanceof Error ? error.message : "删除失败，请重试",
+        });
+
+        // 显示错误通知
+        useToastStore.getState().addToast({
+          message: `删除标签失败：${
+            error instanceof Error ? error.message : "未知错误"
+          }`,
+          type: "error",
+        });
+      }
+    },
+
+    deleteSingleRelease: async (releaseId: number) => {
+      const { releases } = get();
+
+      // 乐观更新：立即从UI中移除该release
+      const originalReleases = releases;
+      const releaseToDelete = releases.find((r) => r.id === releaseId);
+      const updatedReleases = releases.filter(
+        (release) => release.id !== releaseId
+      );
+
+      set({
+        releases: updatedReleases,
+        releasesError: null,
+      });
+
+      try {
+        // 异步执行删除操作
+        await deleteRelease(releaseId);
+
+        // 删除成功，清除缓存以确保下次获取最新数据
+        set({ releasesCache: new Map() });
+
+        // 显示成功通知
+        useToastStore.getState().addToast({
+          message: `成功删除发布版本 "${releaseToDelete?.name || releaseToDelete?.tag_name || releaseId}"`,
+          type: "success",
+        });
+      } catch (error) {
+        // 删除失败，回滚UI状态
+        set({
+          releases: originalReleases,
+          releasesError:
+            error instanceof Error ? error.message : "删除失败，请重试",
+        });
+
+        // 显示错误通知
+        useToastStore.getState().addToast({
+          message: `删除发布版本失败：${
+            error instanceof Error ? error.message : "未知错误"
+          }`,
+          type: "error",
+        });
+
+        throw error; // 重新抛出错误，让组件知道删除失败
+      }
+    },
+
+    deleteSingleTag: async (tagName: string) => {
+      const { tags } = get();
+
+      // 乐观更新：立即从UI中移除该tag
+      const originalTags = tags;
+      const updatedTags = tags.filter((tag) => tag.name !== tagName);
+
+      set({
+        tags: updatedTags,
+        tagsError: null,
+      });
+
+      try {
+        // 异步执行删除操作
+        await deleteTag(tagName);
+
+        // 删除成功，清除缓存以确保下次获取最新数据
+        set({ tagsCache: new Map() });
+
+        // 显示成功通知
+        useToastStore.getState().addToast({
+          message: `成功删除标签 "${tagName}"`,
+          type: "success",
+        });
+      } catch (error) {
+        // 删除失败，回滚UI状态
+        set({
+          tags: originalTags,
+          tagsError:
+            error instanceof Error ? error.message : "删除失败，请重试",
+        });
+
+        // 显示错误通知
+        useToastStore.getState().addToast({
+          message: `删除标签失败：${
+            error instanceof Error ? error.message : "未知错误"
+          }`,
+          type: "error",
+        });
+
+        throw error; // 重新抛出错误，让组件知道删除失败
       }
     },
   }))

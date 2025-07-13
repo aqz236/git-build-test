@@ -7,7 +7,6 @@ import {
 import { Check, Copy, ExternalLink, GitBranch, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { GitHubTag } from "../services/github-api";
-import { deleteTag } from "../services/github-api";
 import { useGitHubStore } from "../store/github-store";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { MarkdownViewer } from "./MarkdownViewer";
@@ -27,10 +26,10 @@ export function TagsTable() {
     debouncedSearchKeyword,
     clearCache,
     forceRefreshTags,
+    deleteSingleTag,
   } = useGitHubStore();
 
   const [copiedSha, setCopiedSha] = useState<string | null>(null);
-  const [deletingTag, setDeletingTag] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   useEffect(() => {
@@ -54,17 +53,15 @@ export function TagsTable() {
   const handleConfirmDelete = async () => {
     if (!confirmDelete) return;
 
+    const tagName = confirmDelete;
     setConfirmDelete(null);
-    setDeletingTag(confirmDelete);
 
     try {
-      await deleteTag(confirmDelete);
-      // 强制刷新数据，绕过缓存
-      await forceRefreshTags();
+      // 使用store的删除方法，会自动进行乐观更新
+      await deleteSingleTag(tagName);
     } catch (error) {
       console.error("删除标签失败:", error);
-    } finally {
-      setDeletingTag(null);
+      // 错误已经在store中处理并显示，这里不需要额外处理
     }
   };
 
@@ -178,12 +175,11 @@ export function TagsTable() {
           </a>
           <button
             onClick={() => handleDeleteSingleTag(row.original.name)}
-            disabled={deletingTag === row.original.name}
-            className="inline-flex items-center gap-1 text-red-600 hover:text-red-800 disabled:opacity-50"
+            className="inline-flex items-center gap-1 text-red-600 hover:text-red-800"
             title="删除此标签"
           >
             <Trash2 className="w-4 h-4" />
-            {deletingTag === row.original.name ? "删除中..." : "删除"}
+            删除
           </button>
         </div>
       ),
