@@ -1,0 +1,95 @@
+name: 🧪 Test Billing - Simple Demo
+
+# 简单的测试 workflow，运行约30秒
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # 允许手动触发
+  
+jobs:
+  test-ubuntu:
+    name: 🐧 Test Ubuntu (Standard Runner)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        
+      - name: 🔍 Show system info
+        run: |
+          echo "=== System Information ==="
+          uname -a
+          echo "CPU cores: $(nproc)"
+          echo "Memory: $(free -h)"
+          echo "Disk: $(df -h)"
+          
+      - name: ⏱️ Wait 10 seconds
+        run: |
+          echo "Waiting 10 seconds..."
+          sleep 10
+          echo "Done waiting!"
+          
+      - name: 🔨 Simulate some work
+        run: |
+          echo "Doing some work..."
+          for i in {1..5}; do
+            echo "Step $i of 5"
+            sleep 2
+          done
+          echo "Work completed!"
+          
+      - name: 📊 Show completion time
+        run: |
+          echo "Job completed at: $(date)"
+          echo "Total runtime: approximately 20-25 seconds"
+
+  test-macos:
+    name: 🍎 Test macOS (Standard Runner)
+    runs-on: macos-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        
+      - name: 🔍 Show system info
+        run: |
+          echo "=== System Information ==="
+          uname -a
+          echo "CPU cores: $(sysctl -n hw.ncpu)"
+          echo "Memory: $(sysctl -n hw.memsize | awk '{print $1/1024/1024/1024 " GB"}')"
+          
+      - name: ⏱️ Wait 10 seconds
+        run: |
+          echo "Waiting 10 seconds..."
+          sleep 10
+          echo "Done waiting!"
+          
+      - name: 🔨 Simulate some work
+        run: |
+          echo "Doing some work..."
+          for i in {1..5}; do
+            echo "Step $i of 5"
+            sleep 2
+          done
+          echo "Work completed!"
+          
+      - name: 📊 Show completion time
+        run: |
+          echo "Job completed at: $(date)"
+          echo "Total runtime: approximately 20-25 seconds"
+
+  summary:
+    name: 📋 Summary
+    runs-on: ubuntu-latest
+    needs: [test-ubuntu, test-macos]
+    if: always()
+    
+    steps:
+      - name: 📊 Test Summary
+        run: |
+          echo "=== Test Summary ==="
+          echo "✅ Ubuntu job status: ${{ needs.test-ubuntu.result }}"
+          echo "✅ macOS job status: ${{ needs.test-macos.result }}"
+          echo "📝 Both jobs should have run for about 20-25 seconds each"
+          echo "💰 Check your billing page to see if any charges appear"
+          echo "🔗 Billing URL: https://github.com/settings/billing/summary"

@@ -1,0 +1,38 @@
+name: 🚀 Quick Test - Ubuntu Only
+
+# 更简单的测试，只使用 Ubuntu 运行器
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  
+jobs:
+  quick-test:
+    name: ⚡ Quick Ubuntu Test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        
+      - name: 🎯 Simple 30s test
+        run: |
+          echo "Starting simple test..."
+          echo "Current time: $(date)"
+          
+          # 运行一些基本命令
+          echo "=== Basic Info ==="
+          whoami
+          pwd
+          ls -la
+          
+          # 等待一段时间
+          echo "=== Waiting 20 seconds ==="
+          for i in {1..20}; do
+            echo "Second $i"
+            sleep 1
+          done
+          
+          echo "=== Test completed ==="
+          echo "End time: $(date)"
+          echo "This should be FREE for public repositories!"
